@@ -1,17 +1,21 @@
-import boto3
-import os
 import io
 import json
-
+import os
 from typing import Generator
+
+import boto3
+from pandas import DataFrame, read_table, to_datetime
 
 
 class S3Manager:
-    def __init__(self, access_key: str, secret_access_key: str, dialog_dumps_bucket: str) -> None:
+    def __init__(self, access_key: str, secret_access_key: str, dialog_dumps_bucket: str,
+                 ratings_bucket: str, team_id: str) -> None:
         self._s3 = boto3.client('s3', aws_access_key_id=access_key, aws_secret_access_key=secret_access_key)
         self._dialog_dumps_bucket = dialog_dumps_bucket
+        self._ratings_bucket = ratings_bucket
+        self._team_id = team_id
 
-    def _get_all_interval_logs(self) -> Generator[dict, None, None]:
+    def get_all_interval_logs(self) -> Generator[dict, None, None]:
         continuation_token = None
         while True:
             kwargs = {'Bucket': self._dialog_dumps_bucket}
@@ -24,10 +28,27 @@ class S3Manager:
             continuation_token = response.get('NextContinuationToken')
 
     def download_logs_to_dir(self, dir):
-        for file in self._get_all_interval_logs():
+        for file in self.get_all_interval_logs():
             self._s3.download_file(self._dialog_dumps_bucket, file['Key'], os.path.join(dir, file['Key']))
 
-    def get_interval_logs_json(self, key):
+    def get_hour_log_json(self, key):
         filelike = io.BytesIO(b'')
         self._s3.download_fileobj(self._dialog_dumps_bucket, key, filelike)
         return json.loads(filelike.getvalue().decode())
+
+    def _get_results(self, filename) -> DataFrame:
+        filelike = io.BytesIO(b'')
+        self._s3.download_fileobj(self._ratings_bucket, f'{self._team_id}/{filename}', filelike)
+        filelike.seek(0)
+        return read_table(filelike, sep=',', index_col=False, encoding='utf-8')
+
+    def get_feedback(self):
+        df = self._get_results('conversation_feedback.csv')
+        # TODO: Make proper time filtering (problem with different formats)
+#        df['conversation_start_time'] = to_datetime(df['conversation_start_time'])
+        return df
+
+    def get_ratings(self):
+        df = self._get_results('ratings.csv')
+        df['Approximate Start Time'] = to_datetime(df['Approximate Start Time'])
+        return df

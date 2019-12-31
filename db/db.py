@@ -1,7 +1,9 @@
+from datetime import datetime
+
+from pandas import read_csv, DataFrame
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from datetime import datetime
-import json
+from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 
 from db.models import Base, ConversationPeer, Conversation, Utterance
 
@@ -16,6 +18,21 @@ class DBManager:
 
     def add_hour_logs(self, dblogs: list):
         for conversation in dblogs:
+            conv_id = conversation['utterances'][0]['attributes'].get('conversation_id')
+            if conv_id is None:
+                print('Conversation ID is None')
+                continue
+            try:
+                conv = self._session.query(Conversation).filter_by(alexa_conversation_id=conv_id).one()
+            except NoResultFound:
+                pass
+            except MultipleResultsFound:
+                print(f"{conv_id} is already in conversations")
+                continue
+            else:
+                # TODO: make proper warning
+                print(f"{conv_id} is already in conversations")
+                continue
             conv = Conversation(alexa_conversation_id=conversation['utterances'][0]['attributes']['conversation_id'])
             self._session.add(conv)
             self._session.commit()
@@ -42,3 +59,37 @@ class DBManager:
                 )
                 self._session.add(peer)
             self._session.commit()
+
+    def add_ratings(self, df: DataFrame):
+        for _, row in df.iterrows():
+            try:
+                conversation = self._session.query(Conversation).filter_by(
+                    alexa_conversation_id=row['Conversation ID']).one()
+                conversation.rating = row['Rating']
+            except MultipleResultsFound as e:
+                #TODO: make proper error handling
+                print(e)
+            except NoResultFound:
+                pass
+        self._session.commit()
+
+    def add_feedbacks(self, df: DataFrame):
+        for _, row in df.iterrows():
+            try:
+                conversation = self._session.query(Conversation).filter_by(
+                    alexa_conversation_id=row['conversation_id']).one()
+                conversation.rating = conversation.rating or row['rating']
+                conversation.feedback = row['feedback']
+            except MultipleResultsFound as e:
+                # TODO: make proper error handling
+                print(e)
+            except NoResultFound:
+                pass
+        self._session.commit()
+
+    def get_last_utterance_time(self):
+        utterance = self._session.query(Utterance).order_by(Utterance.date_time.desc()).first()
+        if utterance:
+            return utterance.date_time
+        else:
+            return None
