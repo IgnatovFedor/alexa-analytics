@@ -1,14 +1,8 @@
-import os
 from pytz import UTC
+from time import sleep
+
 from db.db import DBManager
-from s3 import S3Manager
-
-S3_ACCESS_KEY = os.getenv('S3_ACCESS_KEY')
-S3_SECRET_ACCESS_KEY = os.getenv('S3_SECRET_ACCESS_KEY')
-TEAM_ID = os.getenv('TEAM_ID')
-
-if not (S3_ACCESS_KEY and S3_SECRET_ACCESS_KEY):
-    raise ValueError('Please set S3_ACCESS_KEY and S3_SECRET_ACCESS_KEY environment variables.')
+from server.s3 import S3Manager
 
 
 def update_db(s3: S3Manager, db: DBManager):
@@ -34,3 +28,10 @@ def update_db(s3: S3Manager, db: DBManager):
 #        feedbacks = feedbacks[feedbacks['conversation_start_time'] > last_utt_time]
     db.add_feedbacks(feedbacks)
     print('feedbacks updated')
+
+
+def start_polling(s3: S3Manager, db: DBManager):
+    # TODO: make better update timeout (to update exactly after new hour)
+    while True:
+        update_db(s3, db)
+        sleep(3600)
