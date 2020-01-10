@@ -1,0 +1,15 @@
+{
+  "S3": {
+    "key": "",
+    "secret": "",
+    "dialogs-bucket": "",
+    "stats-bucket": "",
+    "team-id": ""
+  },
+  "DB": {
+    "user": "",
+    "password": "",
+    "host": "",
+    "dbname": ""
+  }
+}
