@@ -35,7 +35,8 @@ def main():
         start_polling(s3, db)
 
     if args.mode == 'server':
-        start_admin(session)
+        admin = config['admin']
+        start_admin(session, admin['user'], admin['password'])
 
 
 if __name__ == "__main__":
