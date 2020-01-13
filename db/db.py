@@ -4,6 +4,7 @@ from logging import getLogger
 from pandas import DataFrame
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm.session import Session
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 
 from db.models import Base, ConversationPeer, Conversation, Utterance
@@ -11,13 +12,17 @@ from db.models import Base, ConversationPeer, Conversation, Utterance
 log = getLogger(__name__)
 
 
+def get_session(user: str, password: str, host: str, dbname: str) -> Session:
+    db_uri = f'postgresql://{user}:{password}@{host}/{dbname}'
+    engine = create_engine(db_uri)
+    Base.metadata.create_all(engine)
+    session_maker = sessionmaker(bind=engine)
+    return session_maker()
+
+
 class DBManager:
-    def __init__(self, user: str, password: str, host: str, dbname: str):
-        db_uri = f'postgresql://{user}:{password}@{host}/{dbname}'
-        engine = create_engine(db_uri)
-        Base.metadata.create_all(engine)
-        Session = sessionmaker(bind=engine)
-        self._session = Session()
+    def __init__(self, session: Session):
+        self._session = session
 
     def add_hour_logs(self, dblogs: list):
         for conversation in dblogs:
