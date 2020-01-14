@@ -5,7 +5,7 @@ from flask_basicauth import BasicAuth
 from sqlalchemy.orm.session import Session
 from werkzeug.exceptions import HTTPException
 
-from db.models import Conversation
+from db.models import Conversation, Utterance
 
 app = Flask(__name__)
 basic_auth = BasicAuth(app)
@@ -35,7 +35,8 @@ class SafeModelView(ModelView):
 
 
 class ConversationModelView(SafeModelView):
-    pass
+    column_list = ('alexa_conversation_id', 'feedback', 'rating', 'length')
+    column_filters = ('started', 'length', 'feedback', 'rating')
 
 
 def start_admin(session: Session, user: str, password: str) -> None:
@@ -46,4 +47,4 @@ def start_admin(session: Session, user: str, password: str) -> None:
     admin = Admin(app, name='microblog', template_mode='bootstrap3')
     admin.add_view(ConversationModelView(Conversation, session))
 
-    app.run()
+    app.run(host='0.0.0.0')

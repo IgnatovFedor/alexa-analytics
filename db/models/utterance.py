@@ -16,10 +16,6 @@ class Utterance(BaseModel):
     active_skill = Column(VARCHAR(255), nullable=True)
     attributes = Column(JSONB, nullable=True)
 
-    @declared_attr
-    def conversation_id(cls):
-        return Column(Integer, ForeignKey('conversation.id'), nullable=False)
+    conversation = relationship('Conversation', back_populates='utterances')
 
-    @declared_attr
-    def conversation(cls):
-        return relationship('Conversation', back_populates='utterances')
+    conversation_id = Column(Integer, ForeignKey('conversation.id'), nullable=False)
