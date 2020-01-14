@@ -9,7 +9,7 @@ from jinja2 import Markup
 from sqlalchemy.orm.session import Session
 from werkzeug.exceptions import HTTPException
 
-from db.models import Conversation
+from db.models import Conversation, ConversationPeer
 
 app = Flask(__name__)
 basic_auth = BasicAuth(app)
@@ -39,7 +39,28 @@ class SafeModelView(ModelView):
 
 
 def _alexa_id_formatter(view, context, model: Conversation, name):
-    return Markup(f"<a href='/admin'>{model.__getattribute__(name)[-20:]}</a>")
+    return Markup(f"<a href='/conversation/{model.id}'>{model.__getattribute__(name)[-20:]}</a>")
+
+
+def repr_conversation(item, session):
+
+    return {
+        'conversation_id': item.alexa_conversation_id,
+        'feedback': item.feedback,
+        'rating': item.rating,
+        'utterances': [
+            f'{utt.active_skill or utt.type}: {utt.text}' for utt in item.utterances
+        ],
+        'peers': [
+            {
+                'type': p.type,
+                'persona': p.persona,
+                'attributes': p.attributes,
+                'profile': p.profile
+            }
+            for p in session.query(ConversationPeer).filter_by(conversation_id=item.id)
+        ]
+    }
 
 
 class ConversationModelView(SafeModelView):
@@ -60,17 +81,7 @@ class ConversationModelView(SafeModelView):
 
             items = self.session.query(Conversation).filter(Conversation.id.in_(ids))
             if items:
-                items = [
-                    {
-                        'conversation_id': item.alexa_conversation_id,
-                        'feedback': item.feedback,
-                        'rating': item.rating,
-                        'utterances': [
-                            f'{utt.active_skill or utt.type}: {utt.text}' for utt in item.utterances
-                        ]
-                    }
-                    for item in items
-                ]
+                items = [repr_conversation(item, self.session) for item in items]
                 return (
                     json.dumps(items, indent=4),
                     200,
@@ -92,6 +103,11 @@ class ConversationModelView(SafeModelView):
 
 
 def start_admin(session: Session, user: str, password: str) -> None:
+    @app.route('/conversation/<int:id>')
+    def show(id: int):
+        conv = session.query(Conversation).filter_by(id=id).one()
+        return repr_conversation(conv, session)
+
     app.config['FLASK_ADMIN_SWATCH'] = 'cerulean'
     app.config['BASIC_AUTH_USERNAME'] = user
     app.config['BASIC_AUTH_PASSWORD'] = password
