@@ -11,5 +11,9 @@
     "password": "",
     "host": "",
     "dbname": ""
+  },
+  "admin": {
+    "user": "user",
+    "password": "password"
   }
 }

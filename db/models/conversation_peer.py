@@ -1,6 +1,5 @@
 from sqlalchemy import Column, Integer, ForeignKey, VARCHAR
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.ext.declarative import declared_attr
 
 from db.models.base import BaseModel
 
@@ -17,6 +16,4 @@ class ConversationPeer(BaseModel):
     user_telegram_id = Column(VARCHAR(512), nullable=True)
     profile = Column(JSONB, nullable=True)
 
-    @declared_attr
-    def conversation_id(cls):
-        return Column(Integer, ForeignKey('conversation.id'), nullable=False)
+    conversation_id = Column(Integer, ForeignKey('conversation.id'), nullable=False)

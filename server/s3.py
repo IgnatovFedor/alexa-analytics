@@ -4,7 +4,7 @@ import os
 from typing import Generator
 
 import boto3
-from pandas import DataFrame, read_table, to_datetime
+from pandas import DataFrame, read_table, to_datetime, notnull
 
 
 class S3Manager:
@@ -44,6 +44,7 @@ class S3Manager:
 
     def get_feedback(self):
         df = self._get_results('conversation_feedback.csv')
+        df = df.where((notnull(df)), None)
         # TODO: Make proper time filtering (problem with different formats)
 #        df['conversation_start_time'] = to_datetime(df['conversation_start_time'])
         return df
