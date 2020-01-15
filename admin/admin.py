@@ -123,6 +123,11 @@ def start_admin(session: Session, user: str, password: str, port: int) -> None:
     def index():
         return '<a href="/admin/">Click me to get to Admin!</a>'
 
+    # Without session.expire_all flask-admin is showing old values of rows if they were updated after server start
+    @app.teardown_request
+    def teardown_request(*args, **kwargs):
+        session.expire_all()
+
     app.config['FLASK_ADMIN_SWATCH'] = 'cerulean'
     app.config['BASIC_AUTH_USERNAME'] = user
     app.config['BASIC_AUTH_PASSWORD'] = password
