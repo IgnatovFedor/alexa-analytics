@@ -9,6 +9,7 @@ from server.server import start_polling
 parser = argparse.ArgumentParser()
 
 parser.add_argument('mode', help='select a mode: server or poller', type=str, choices={'server', 'poller'})
+parser.add_argument('-p', '--port', help='select admin port', type=int, default=5000)
 
 
 def verify_config(config):
@@ -36,7 +37,7 @@ def main():
 
     if args.mode == 'server':
         admin = config['admin']
-        start_admin(session, admin['user'], admin['password'])
+        start_admin(session, admin['user'], admin['password'], args.port)
 
 
 if __name__ == "__main__":

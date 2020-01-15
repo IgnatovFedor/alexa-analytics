@@ -100,7 +100,7 @@ class ConversationModelView(SafeModelView):
             flash('Failed to export: {}'.format(str(e)), 'error')
 
 
-def start_admin(session: Session, user: str, password: str) -> None:
+def start_admin(session: Session, user: str, password: str, port: int) -> None:
     @app.route('/conversation/<id>')
     def show(id: str):
         conv = session.query(Conversation).filter_by(id=id).one()
@@ -124,4 +124,4 @@ def start_admin(session: Session, user: str, password: str) -> None:
     admin = Admin(app, name='microblog', template_mode='bootstrap3')
     admin.add_view(ConversationModelView(Conversation, session))
 
-    app.run(host='0.0.0.0')
+    app.run(host='0.0.0.0', port=port)
