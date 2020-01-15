@@ -9,7 +9,7 @@ from jinja2 import Markup
 from sqlalchemy.orm.session import Session
 from werkzeug.exceptions import HTTPException
 
-from db.models import Conversation, ConversationPeer
+from db.models import Conversation
 
 app = Flask(__name__)
 basic_auth = BasicAuth(app)
@@ -39,34 +39,13 @@ class SafeModelView(ModelView):
 
 
 def _alexa_id_formatter(view, context, model: Conversation, name):
-    return Markup(f"<a href='/conversation/{model.id}'>{model.__getattribute__(name)[-20:]}</a>")
-
-
-def repr_conversation(item, session):
-
-    return {
-        'conversation_id': item.alexa_conversation_id,
-        'feedback': item.feedback,
-        'rating': item.rating,
-        'utterances': [
-            f'{utt.active_skill or utt.type}: {utt.text}' for utt in item.utterances
-        ],
-        'peers': [
-            {
-                'type': p.type,
-                'persona': p.persona,
-                'attributes': p.attributes,
-                'profile': p.profile
-            }
-            for p in session.query(ConversationPeer).filter_by(conversation_id=item.id)
-        ]
-    }
+    return Markup(f"<a href='/conversation/{model.id}'>{model.__getattribute__(name)}</a>")
 
 
 class ConversationModelView(SafeModelView):
-    column_list = ('alexa_conversation_id',  'length', 'started', 'feedback', 'rating')
-    column_filters = ('started', 'length', 'feedback', 'rating')
-    column_formatters = {'alexa_conversation_id': _alexa_id_formatter}
+    column_list = ('id',  'length', 'date_start', 'feedback', 'rating')
+    column_filters = ('date_start', 'length', 'feedback', 'rating')
+    column_formatters = {'id': _alexa_id_formatter}
 
     page_size = 1000
 
@@ -79,18 +58,37 @@ class ConversationModelView(SafeModelView):
             _, query = self.get_list(view_args.page, sort_column, view_args.sort_desc, view_args.search,
                                      view_args.filters, execute=False)
 
-            items = self.session.query(Conversation).filter(Conversation.id.in_(ids))
-            if items:
-                items = [repr_conversation(item, self.session) for item in items]
+            conversations = self.session.query(Conversation).filter(Conversation.id.in_(ids))
+            if conversations:
+                conversations = [{
+                    'id': conv.id,
+                    'utterances': [
+                        {
+                            'text': utt.text,
+                            'date_time': utt.date_time.strftime('%Y-%m-%d %H:%M:%S.%f'),
+                            'active_skill': utt.active_skill
+                        } if utt.active_skill is not None else {
+                            'text': utt.text,
+                            'date_time': utt.date_time.strftime('%Y-%m-%d %H:%M:%S.%f'),
+                            'attributes': utt.attributes
+                        }
+                        for utt in conv.utterances
+                    ],
+                    'human': conv.human,
+                    'bot': conv.bot,
+                    'date_start': conv.date_start.strftime('%Y-%m-%d %H:%M:%S.%f'),
+                    'date_finish': conv.date_finish.strftime('%Y-%m-%d %H:%M:%S.%f')
+                }
+                    for conv in conversations]
                 return (
-                    json.dumps(items, indent=4),
+                    json.dumps(conversations, indent=4),
                     200,
                     {
                         'Content-Type': 'application/json',
                         'Pragma': 'no-cache',
                         'Cache-Control': 'no-cache, no-store, must-revalidate',
                         'Expires': '0',
-                        'Content-Disposition': 'attachment; filename="mymodel.json"'
+                        'Content-Disposition': 'attachment; filename="alexaprize-export.json"'
                     }
                 )
 
@@ -103,10 +101,21 @@ class ConversationModelView(SafeModelView):
 
 
 def start_admin(session: Session, user: str, password: str) -> None:
-    @app.route('/conversation/<int:id>')
-    def show(id: int):
+    @app.route('/conversation/<id>')
+    def show(id: str):
         conv = session.query(Conversation).filter_by(id=id).one()
-        return repr_conversation(conv, session)
+        utts = [f'<tr bgcolor={"lightgray" if utt.active_skill else "white"}><td>{utt.active_skill or "Human"}</td><td>{utt.text}</td></tr>' for utt in conv.utterances]
+        attrs = [
+            f'id: {conv.amazon_conv_id}<br>'
+            f'date_start: {conv.date_start}<br>'
+            f'rating: {conv.rating}<br>'
+            f'feedback: {conv.feedback}'
+        ]
+        return f"<table><tr>{''.join(attrs)}</tr>{''.join(utts)}</table>"
+
+    @app.route("/")
+    def red():
+        return redirect("/admin")
 
     app.config['FLASK_ADMIN_SWATCH'] = 'cerulean'
     app.config['BASIC_AUTH_USERNAME'] = user
