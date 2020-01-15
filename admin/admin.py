@@ -8,6 +8,7 @@ from flask_basicauth import BasicAuth
 from jinja2 import Markup
 from sqlalchemy.orm.session import Session
 from werkzeug.exceptions import HTTPException
+from flask_admin.contrib.sqla.filters import FilterLike
 
 from db.models import Conversation
 
@@ -43,9 +44,13 @@ def _alexa_id_formatter(view, context, model: Conversation, name):
 
 
 class ConversationModelView(SafeModelView):
-    column_list = ('id',  'length', 'date_start', 'feedback', 'rating')
+    column_list = ('id',  'length', 'date_start', 'feedback', 'rating', 'tg_id')
     column_filters = ('date_start', 'length', 'feedback', 'rating')
-    column_formatters = {'id': _alexa_id_formatter}
+    column_formatters = {
+        'id': _alexa_id_formatter,
+        'tg_id': lambda v, c, m, n: m.__getattribute__(n)[:5]
+    }
+    column_sortable_list = ('length', 'date_start', 'feedback', 'rating', ('tg_id', Conversation.tg_id),)
 
     page_size = 1000
 
@@ -106,16 +111,17 @@ def start_admin(session: Session, user: str, password: str, port: int) -> None:
         conv = session.query(Conversation).filter_by(id=id).one()
         utts = [f'<tr bgcolor={"lightgray" if utt.active_skill else "white"}><td>{utt.active_skill or "Human"}</td><td>{utt.text}</td></tr>' for utt in conv.utterances]
         attrs = [
-            f'id: {conv.amazon_conv_id}<br>'
-            f'date_start: {conv.date_start}<br>'
-            f'rating: {conv.rating}<br>'
+            f'id: {conv.amazon_conv_id}',
+            f'user_telegram_id: {conv.human["user_telegram_id"]}',
+            f'date_start: {conv.date_start}',
+            f'rating: {conv.rating}',
             f'feedback: {conv.feedback}'
         ]
-        return f"<table><tr>{''.join(attrs)}</tr>{''.join(utts)}</table>"
+        return f"<table><tr>{'<br>'.join(attrs)}</tr>{''.join(utts)}</table>"
 
-    @app.route("/")
-    def red():
-        return redirect("/admin")
+    @app.route('/')
+    def index():
+        return '<a href="/admin/">Click me to get to Admin!</a>'
 
     app.config['FLASK_ADMIN_SWATCH'] = 'cerulean'
     app.config['BASIC_AUTH_USERNAME'] = user
