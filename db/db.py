@@ -4,10 +4,10 @@ from logging import getLogger
 from pandas import DataFrame
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.orm.session import Session
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
+from sqlalchemy.orm.session import Session
 
-from db.models import Base, ConversationPeer, Conversation, Utterance
+from db.models import Base, Conversation, Utterance
 
 log = getLogger(__name__)
 
@@ -24,67 +24,56 @@ class DBManager:
     def __init__(self, session: Session):
         self._session = session
 
-    def add_hour_logs(self, dblogs: list):
+    def add_hour_logs(self, dblogs: list) -> None:
+        conversations_added = 0
         for conversation in dblogs:
-            conv_id = conversation['utterances'][0]['attributes'].get('conversation_id')
-            if conv_id is None:
-                log.warning('Conversation ID is None')
-                continue
+            conv_id = conversation['id']
             try:
-                conv = self._session.query(Conversation).filter_by(alexa_conversation_id=conv_id).one()
+                conv = self._session.query(Conversation).filter_by(id=conv_id).one()
+                conversation['utterances'] = conversation['utterances'][conv.utterances.count():]
+                conv.length += len(conversation['utterances'])
+
             except NoResultFound:
-                pass
+                conv = Conversation(
+                    id=conv_id,
+                    date_start=self._parse_time(conversation['date_start']),
+                    date_finish=self._parse_time(conversation['date_finish']),
+                    human=conversation['human'],
+                    bot=conversation['bot'],
+                    length=len(conversation['utterances']),
+                    amazon_conv_id=conversation['utterances'][0]['attributes'].get('conversation_id')
+                )
+
             except MultipleResultsFound:
                 log.error(f"{conv_id} is already in conversations multiple times")
                 continue
-            else:
-                for utterance in conversation['utterances'][conv.utterances.count():]:
-                    self._add_utterance(utterance, conv.id)
-                continue
-
-            try:
-                start_time = datetime.strptime(conversation['utterances'][0]['date_time'], '%Y-%m-%d %H:%M:%S.%f')
-            except ValueError:
-                start_time = datetime.strptime(conversation['utterances'][0]['date_time'], '%Y-%m-%d %H:%M:%S')
-            conv = Conversation(alexa_conversation_id=conversation['utterances'][0]['attributes']['conversation_id'],
-                                started=start_time,
-                                length=len(conversation['utterances']))
-            self._session.add(conv)
-            self._session.commit()
 
             for utterance in conversation['utterances']:
-                self._add_utterance(utterance, conv.id)
+                utt = Utterance(text=utterance['text'],
+                                date_time=self._parse_time(utterance['date_time']),
+                                active_skill=utterance.get('active_skill'),
+                                attributes=utterance.get('attributes'),
+                                conversation_id=conv_id)
+                self._session.add(utt)
 
-            for peer_name in ['bot', 'human']:
-                peer = ConversationPeer(
-                    type=peer_name,
-                    persona=conversation[peer_name]['persona'],
-                    attributes=conversation[peer_name]['attributes'],
-                    user_telegram_id=conversation[peer_name].get('user_telegram_id'),
-                    profile=conversation[peer_name].get('profile'),
-                    conversation_id=conv.id
-                )
-                self._session.add(peer)
+            self._session.add(conv)
+            conversations_added += 1
+
         self._session.commit()
+        log.info(f'Successfully added {conversations_added} conversations')
 
-    def _add_utterance(self, utterance, conv_id):
+    @staticmethod
+    def _parse_time(time_str: str):
         try:
-            timestamp = datetime.strptime(utterance['date_time'], '%Y-%m-%d %H:%M:%S.%f')
+            time = datetime.strptime(time_str, '%Y-%m-%d %H:%M:%S.%f')
         except ValueError:
-            timestamp = datetime.strptime(utterance['date_time'], '%Y-%m-%d %H:%M:%S')
-        utt = Utterance(type='bot' if 'active_skill' in utterance else 'human',
-                        active_skill=utterance.get('active_skill'),
-                        text=utterance['text'],
-                        date_time=timestamp,
-                        attributes=utterance.get('attributes'),
-                        conversation_id=conv_id)
-        self._session.add(utt)
+            time = datetime.strptime(time_str, '%Y-%m-%d %H:%M:%S')
+        return time
 
     def add_ratings(self, df: DataFrame):
         for _, row in df.iterrows():
             try:
-                conversation = self._session.query(Conversation).filter_by(
-                    alexa_conversation_id=row['Conversation ID']).one()
+                conversation = self._session.query(Conversation).filter_by(amazon_conv_id=row['Conversation ID']).one()
                 conversation.rating = row['Rating']
             except MultipleResultsFound:
                 #TODO: make proper error handling
@@ -96,8 +85,7 @@ class DBManager:
     def add_feedbacks(self, df: DataFrame):
         for _, row in df.iterrows():
             try:
-                conversation = self._session.query(Conversation).filter_by(
-                    alexa_conversation_id=row['conversation_id']).one()
+                conversation = self._session.query(Conversation).filter_by(amazon_conv_id=row['conversation_id']).one()
                 conversation.rating = conversation.rating or row['rating']
                 conversation.feedback = row['feedback']
             except MultipleResultsFound:

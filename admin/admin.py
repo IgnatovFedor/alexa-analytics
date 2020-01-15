@@ -9,7 +9,7 @@ from jinja2 import Markup
 from sqlalchemy.orm.session import Session
 from werkzeug.exceptions import HTTPException
 
-from db.models import Conversation, ConversationPeer
+from db.models import Conversation
 
 app = Flask(__name__)
 basic_auth = BasicAuth(app)
