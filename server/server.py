@@ -1,5 +1,6 @@
 from logging import getLogger
 from time import sleep
+from datetime import timedelta
 
 from pytz import UTC
 
@@ -23,6 +24,7 @@ def update_db(s3: S3Manager, db: DBManager):
     log.info('utterances updated')
     ratings = s3.get_ratings()
     if last_utt_time is not None:
+        last_utt_time = last_utt_time - timedelta(days=2)
         ratings = ratings[ratings['Approximate Start Time'] > last_utt_time]
     db.add_ratings(ratings)
     log.info('ratings updated')
