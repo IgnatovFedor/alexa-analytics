@@ -1,5 +1,6 @@
 from sqlalchemy import Column, UnicodeText, Float, Integer, TIMESTAMP, CHAR, VARCHAR
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import relationship
 
 from db.models.base import BaseModel
@@ -22,3 +23,8 @@ class Conversation(BaseModel):
 
     utterances = relationship('Utterance', order_by='Utterance.date_time', back_populates='conversation',
                               lazy='dynamic')
+
+    # TODO: Make tg_id searchable with placing users and bots to different table
+    @hybrid_property
+    def tg_id(self):
+        return self.human['user_telegram_id']
