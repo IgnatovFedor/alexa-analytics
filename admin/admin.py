@@ -109,7 +109,17 @@ def start_admin(session: Session, user: str, password: str, port: int) -> None:
     @app.route('/conversation/<id>')
     def show(id: str):
         conv = session.query(Conversation).filter_by(id=id).one()
-        utts = [f'<tr bgcolor={"lightgray" if utt.active_skill else "white"}><td>{utt.active_skill or "Human"}</td><td>{utt.text}</td></tr>' for utt in conv.utterances]
+        utts = []
+        utterances = list(conv.utterances)
+        for i, utt in enumerate(utterances):
+            if i != 0:
+                td = (utt.date_time - utterances[i-1].date_time).total_seconds()
+                td = '[{:.2f}] '.format(td)
+            else:
+                td = ''
+            utts.append(
+                f'<tr bgcolor={"lightgray" if utt.active_skill else "white"}><td>{utt.active_skill or "Human"}</td><td>{td}{utt.text}</td></tr>'
+            )
         attrs = [
             f'id: {conv.amazon_conv_id}',
             f'user_telegram_id: {conv.human["user_telegram_id"]}',
