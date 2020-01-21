@@ -55,6 +55,26 @@ class FilterByActiveSkill(BaseSQLAFilter):
         return u'equals'
 
 
+class FilterByUtteranceText(BaseSQLAFilter):
+    # Override to create an appropriate query and apply a filter to said query with the passed value from the filter UI
+    def apply(self, query, value, alias=None):
+        return query.join(Conversation.utterances).filter(Utterance.text.contains(value))
+
+    # readable operation name. This appears in the middle filter line drop-down
+    def operation(self):
+        return u'contains'
+
+
+class FilterByTgId(BaseSQLAFilter):
+    # Override to create an appropriate query and apply a filter to said query with the passed value from the filter UI
+    def apply(self, query, value, alias=None):
+        return query.filter(Conversation.human['user_telegram_id'].astext.contains(value))
+
+    # readable operation name. This appears in the middle filter line drop-down
+    def operation(self):
+        return u'contains'
+
+
 class ConversationModelView(SafeModelView):
     column_list = ('id',  'length', 'date_start', 'feedback', 'rating', 'tg_id')
     column_filters = (
@@ -63,6 +83,8 @@ class ConversationModelView(SafeModelView):
         'feedback',
         'rating',
         FilterByActiveSkill(column=None, name='active_skill'),
+        FilterByUtteranceText(column=None, name='utterance_text'),
+        FilterByTgId(column=None, name='tg_id')
     )
 
     column_formatters = {
