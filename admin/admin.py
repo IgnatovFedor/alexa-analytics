@@ -4,16 +4,16 @@ from flask import Flask, Response, redirect, flash
 from flask_admin import Admin
 from flask_admin.actions import action
 from flask_admin.contrib.sqla import ModelView
+from flask_admin.contrib.sqla.filters import BaseSQLAFilter
 from flask_basicauth import BasicAuth
 from jinja2 import Markup
+from sqlalchemy import func
 from sqlalchemy.orm.session import Session
 from werkzeug.exceptions import HTTPException
-from flask_admin.contrib.sqla.filters import FilterLike
-from db.models.utterance import Utterance
-from sqlalchemy import func
-from db.models import Conversation
 
-from flask_admin.contrib.sqla.filters import BaseSQLAFilter
+from db.models import Conversation
+from db.models.utterance import Utterance
+
 app = Flask(__name__)
 basic_auth = BasicAuth(app)
 
@@ -72,6 +72,9 @@ class ConversationModelView(SafeModelView):
     column_sortable_list = ('length', 'date_start', 'feedback', 'rating', ('tg_id', Conversation.tg_id),)
 
     page_size = 1000
+
+    def get_count_query(self):
+        return self.session.query(func.count(self.model.id.distinct())).select_from(self.model)
 
     @action('export', 'Export')
     def action_export(self, ids):
