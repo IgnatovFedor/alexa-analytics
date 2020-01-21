@@ -9,9 +9,11 @@ from jinja2 import Markup
 from sqlalchemy.orm.session import Session
 from werkzeug.exceptions import HTTPException
 from flask_admin.contrib.sqla.filters import FilterLike
-
+from db.models.utterance import Utterance
+from sqlalchemy import func
 from db.models import Conversation
 
+from flask_admin.contrib.sqla.filters import BaseSQLAFilter
 app = Flask(__name__)
 basic_auth = BasicAuth(app)
 
@@ -43,9 +45,26 @@ def _alexa_id_formatter(view, context, model: Conversation, name):
     return Markup(f"<a href='/conversation/{model.id}'>{model.__getattribute__(name)}</a>")
 
 
+class FilterByActiveSkill(BaseSQLAFilter):
+    # Override to create an appropriate query and apply a filter to said query with the passed value from the filter UI
+    def apply(self, query, value, alias=None):
+        return query.join(Conversation.utterances).filter(Utterance.active_skill == value)
+
+    # readable operation name. This appears in the middle filter line drop-down
+    def operation(self):
+        return u'equals'
+
+
 class ConversationModelView(SafeModelView):
     column_list = ('id',  'length', 'date_start', 'feedback', 'rating', 'tg_id')
-    column_filters = ('date_start', 'length', 'feedback', 'rating')
+    column_filters = (
+        'date_start',
+        'length',
+        'feedback',
+        'rating',
+        FilterByActiveSkill(column=None, name='active_skill'),
+    )
+
     column_formatters = {
         'id': _alexa_id_formatter,
         'tg_id': lambda v, c, m, n: m.__getattribute__(n)[:5]
