@@ -25,9 +25,11 @@ class DBManager:
     def __init__(self, session: Session):
         self._session = session
 
-    def add_hour_logs(self, dblogs: list) -> None:
+    def add_hour_logs(self, dblogs: list, skip_tg: bool) -> None:
         conversations_added = 0
         for conversation in dblogs:
+            if skip_tg and conversation['utterances'][0]['attributes'].get('conversation_id') is None:
+                continue
             conv_id = conversation['id']
             try:
                 conv = self._session.query(Conversation).filter_by(id=conv_id).one()
