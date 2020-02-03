@@ -29,11 +29,17 @@ def main():
 
     if args.mode == 'poller':
         db = DBManager(session)
-        s3_config = config['S3']
-        verify_config(s3_config)
-        s3 = S3Manager(s3_config['key'], s3_config['secret'], s3_config['dialogs-bucket'], s3_config['stats-bucket'],
-                       s3_config['team-id'])
-        start_polling(s3, db)
+        s3_configs = config['S3']
+        s3s = []
+        for s3_config in s3_configs:
+            verify_config(s3_config)
+            s3s.append(S3Manager(s3_config['key'],
+                                 s3_config['secret'],
+                                 s3_config['dialogs-bucket'],
+                                 s3_config['stats-bucket'],
+                                 s3_config['team-id'],
+                                 s3_config['skip-tg']))
+        start_polling(s3s, db)
 
     if args.mode == 'server':
         admin = config['admin']

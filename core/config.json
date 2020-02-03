@@ -1,11 +1,14 @@
 {
-  "S3": {
-    "key": "",
-    "secret": "",
-    "dialogs-bucket": "",
-    "stats-bucket": "",
-    "team-id": ""
-  },
+  "S3": [
+    {
+      "key": "",
+      "secret": "",
+      "dialogs-bucket": "",
+      "stats-bucket": "",
+      "team-id": "",
+      "skip-tg": false
+    }
+  ],
   "DB": {
     "user": "",
     "password": "",

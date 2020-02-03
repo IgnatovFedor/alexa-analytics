@@ -9,11 +9,12 @@ from pandas import DataFrame, read_table, to_datetime, notnull
 
 class S3Manager:
     def __init__(self, access_key: str, secret_access_key: str, dialog_dumps_bucket: str,
-                 ratings_bucket: str, team_id: str) -> None:
+                 ratings_bucket: str, team_id: str, skip_tg: bool) -> None:
         self._s3 = boto3.client('s3', aws_access_key_id=access_key, aws_secret_access_key=secret_access_key)
         self._dialog_dumps_bucket = dialog_dumps_bucket
         self._ratings_bucket = ratings_bucket
         self._team_id = team_id
+        self.skip_tg = skip_tg
 
     def get_all_interval_logs(self) -> Generator[dict, None, None]:
         continuation_token = None
