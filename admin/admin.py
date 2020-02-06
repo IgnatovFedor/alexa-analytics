@@ -192,11 +192,16 @@ class FilterByRatingEmpty(BaseSQLAFilter, BaseBooleanFilter):
     def operation(self):
         return u'empty'
 
+def _utt_conv_id_formatter(view, context, model: Utterance, name):
+    return Markup(f"<a href='/conversation/{model.conversation_id}'>{model.__getattribute__(name)}</a>")
+
 
 class UtteranceModelView(SafeModelView):
     page_size = 2000
 
-    column_list = ('text', 'date_time', 'active_skill', 'rating')
+    column_list = ('conversation_id', 'text', 'date_time', 'active_skill', 'rating')
+    column_formatters = {'conversation_id': _utt_conv_id_formatter}
+
     column_sortable_list = ('text', 'date_time', 'active_skill')
     column_filters = (
         FilterByRegExp(column=None, name='Text'),
