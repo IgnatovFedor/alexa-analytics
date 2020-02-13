@@ -5,6 +5,7 @@ from flask_admin import Admin
 from flask_admin.actions import action
 from flask_admin.contrib.sqla import ModelView
 from flask_admin.contrib.sqla.filters import BaseSQLAFilter
+from flask_admin.model.filters import BaseBooleanFilter
 from flask_basicauth import BasicAuth
 from jinja2 import Markup
 from sqlalchemy import func
@@ -148,6 +149,107 @@ class ConversationModelView(SafeModelView):
 
             flash('Failed to export: {}'.format(str(e)), 'error')
 
+# TODO: refactor filters and remove error that occurs when two different rating filters are applied
+class FilterByRegExp(BaseSQLAFilter):
+    def apply(self, query, value, alias=None):
+        return query.filter(Utterance.text.op('~')(value))
+
+    def operation(self):
+        return u'regular expression'
+
+
+class FilterByRatingEquals(BaseSQLAFilter):
+    def apply(self, query, value, alias=None):
+        return query.join(Conversation).filter(Conversation.rating == value)
+
+    def operation(self):
+        return u'equals'
+
+
+class FilterByRatingGreater(BaseSQLAFilter):
+    def apply(self, query, value, alias=None):
+        return query.join(Conversation).filter(Conversation.rating > value)
+
+    def operation(self):
+        return u'greater than'
+
+
+class FilterByRatingSmaller(BaseSQLAFilter):
+    def apply(self, query, value, alias=None):
+        return query.join(Conversation).filter(Conversation.rating > value)
+
+    def operation(self):
+        return u'smaller than'
+
+
+class FilterByRatingEmpty(BaseSQLAFilter, BaseBooleanFilter):
+    def apply(self, query, value, alias=None):
+        if value == '1':
+            return query.join(Conversation).filter(Conversation.rating == None)
+        else:
+            return query.join(Conversation).filter(Conversation.rating != None)
+
+    def operation(self):
+        return u'empty'
+
+def _utt_conv_id_formatter(view, context, model: Utterance, name):
+    return Markup(f"<a href='/conversation/{model.conversation_id}'>{model.__getattribute__(name)}</a>")
+
+
+class UtteranceModelView(SafeModelView):
+    page_size = 2000
+
+    column_list = ('conversation_id', 'text', 'date_time', 'active_skill', 'rating')
+    column_formatters = {'conversation_id': _utt_conv_id_formatter}
+
+    column_sortable_list = ('text', 'date_time', 'active_skill')
+    column_filters = (
+        FilterByRegExp(column=None, name='Text'),
+        'date_time',
+        'active_skill',
+        FilterByRatingEquals(column=None, name='Rating'),
+        FilterByRatingGreater(column=None, name='Rating'),
+        FilterByRatingSmaller(column=None, name='Rating'),
+        FilterByRatingEmpty(column=None, name='Rating')
+    )
+
+    @action('export', 'Export')
+    def action_export(self, ids):
+        try:
+            view_args = self._get_list_extra_args()
+            sort_column = self._get_column_by_idx(view_args.sort)
+
+            _, query = self.get_list(view_args.page, sort_column, view_args.sort_desc, view_args.search,
+                                     view_args.filters, execute=False)
+
+            utterances = self.session.query(Utterance).filter(Utterance.id.in_(ids))
+            if utterances:
+                utterances = [{
+                    'text': utt.text,
+                    'date_time': utt.date_time.strftime('%Y-%m-%d %H:%M:%S.%f'),
+                    'active_skill': utt.active_skill,
+                    'rating': utt.rating
+                }
+                    for utt in utterances]
+                return (
+                    json.dumps(utterances, indent=4),
+                    200,
+                    {
+                        'Content-Type': 'application/json',
+                        'Pragma': 'no-cache',
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Expires': '0',
+                        'Content-Disposition': 'attachment; filename="alexaprize-export.json"'
+                    }
+                )
+
+            return ''
+        except Exception as e:
+            if not self.handle_view_exception(e):
+                raise
+
+            flash('Failed to export: {}'.format(str(e)), 'error')
+
 
 def start_admin(session: Session, user: str, password: str, port: int) -> None:
     @app.route('/conversation/<id>')
@@ -188,5 +290,6 @@ def start_admin(session: Session, user: str, password: str, port: int) -> None:
 
     admin = Admin(app, name='microblog', template_mode='bootstrap3')
     admin.add_view(ConversationModelView(Conversation, session))
+    admin.add_view(UtteranceModelView(Utterance, session))
 
     app.run(host='0.0.0.0', port=port)
