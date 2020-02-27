@@ -93,6 +93,7 @@ class ConversationModelView(SafeModelView):
         'tg_id': lambda v, c, m, n: m.__getattribute__(n)[:5]
     }
     column_sortable_list = ('length', 'date_start', 'feedback', 'rating', ('tg_id', Conversation.tg_id),)
+    column_default_sort = ('date_start', True)
 
     page_size = 1000
 
@@ -203,6 +204,7 @@ class UtteranceModelView(SafeModelView):
     column_formatters = {'conversation_id': _utt_conv_id_formatter}
 
     column_sortable_list = ('text', 'date_time', 'active_skill')
+    column_default_sort = ('date_time', True)
     column_filters = (
         FilterByRegExp(column=None, name='Text'),
         'date_time',
