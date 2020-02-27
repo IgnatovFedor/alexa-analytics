@@ -10,6 +10,7 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument('mode', help='select a mode: server or poller', type=str, choices={'server', 'poller'})
 parser.add_argument('-p', '--port', help='select admin port', type=int, default=5000)
+parser.add_argument('-ac', '--amazon-container', help='http of container to get additional info', type=str)
 
 
 def verify_config(config):
@@ -43,7 +44,7 @@ def main():
 
     if args.mode == 'server':
         admin = config['admin']
-        start_admin(session, admin['user'], admin['password'], args.port)
+        start_admin(session, admin['user'], admin['password'], args.port, args.amazon_container)
 
 
 if __name__ == "__main__":
