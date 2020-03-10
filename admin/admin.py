@@ -1,4 +1,5 @@
 import json
+import requests
 
 from flask import Flask, Response, redirect, flash
 from flask_admin import Admin
@@ -253,12 +254,35 @@ class UtteranceModelView(SafeModelView):
             flash('Failed to export: {}'.format(str(e)), 'error')
 
 
-def start_admin(session: Session, user: str, password: str, port: int) -> None:
+def start_admin(session: Session, user: str, password: str, port: int, amazon_container: str) -> None:
     @app.route('/conversation/<id>')
     def show(id: str):
         conv = session.query(Conversation).filter_by(id=id).one()
         utts = []
         utterances = list(conv.utterances)
+
+        def format_annotations(utt: dict):
+            annotations = utt['annotations']
+            annotations = ''.join([f'<tr><td>{key}</td><td>{val}</td></tr>' for key, val in annotations.items()])
+            hypotheses = utt.get('hypotheses', [])
+            h2 = {}
+            for hyp in hypotheses:
+                hyp.pop('annotations', None)
+                h2[hyp.pop('skill_name')] = hyp
+            hypotheses = ''.join([f'<tr><td>{key}</td><td>{val}</td></tr>' for key, val in h2.items()])
+            return f'annotations:<table>{annotations}</table><br>hypotheses:<table>{hypotheses}</table>'
+
+        original_utts = []
+        try:
+            resp = requests.get(f'{amazon_container}/api/dialogs/{id}')
+            if resp.status_code == 200:
+                original_utts = resp.json().get('utterances', [])
+                if original_utts:
+                    original_utts = [format_annotations(utt) for utt in original_utts]
+            else:
+                original_utts = [f'Error: {resp.status_code}' for _ in utterances]
+        except requests.exceptions.ConnectTimeout:
+            original_utts = ['Timeout error' for _ in utterances]
         for i, utt in enumerate(utterances):
             if i != 0:
                 td = (utt.date_time - utterances[i-1].date_time).total_seconds()
@@ -266,7 +290,7 @@ def start_admin(session: Session, user: str, password: str, port: int) -> None:
             else:
                 td = ''
             utts.append(
-                f'<tr bgcolor={"lightgray" if utt.active_skill else "white"}><td>{utt.active_skill or "Human"}</td><td>{td}{utt.text}</td></tr>'
+                f'<tr bgcolor={"lightgray" if utt.active_skill else "white"}><td>{utt.active_skill or "Human"}</td><td><details><summary>{td}{utt.text}</summary>{original_utts[i] if original_utts else ""}</details></td></tr>'
             )
         attrs = [
             f'id: {conv.amazon_conv_id}',
@@ -275,7 +299,8 @@ def start_admin(session: Session, user: str, password: str, port: int) -> None:
             f'rating: {conv.rating}',
             f'feedback: {conv.feedback}'
         ]
-        return f"<table><tr>{'<br>'.join(attrs)}</tr>{''.join(utts)}</table>"
+        return "<style>details summary {display: block;}"\
+               f"</style><table><tr>{'<br>'.join(attrs)}</tr>{''.join(utts)}</table>"
 
     @app.route('/')
     def index():
