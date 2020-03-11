@@ -1,6 +1,6 @@
 import json
-import requests
 
+import requests
 from flask import Flask, Response, redirect, flash
 from flask_admin import Admin
 from flask_admin.actions import action
@@ -9,8 +9,9 @@ from flask_admin.contrib.sqla.filters import BaseSQLAFilter
 from flask_admin.model.filters import BaseBooleanFilter
 from flask_basicauth import BasicAuth
 from jinja2 import Markup
-from sqlalchemy import func
 from sqlalchemy.orm.session import Session
+from sqlalchemy.orm.strategy_options import joinedload
+from sqlalchemy.sql import func
 from werkzeug.exceptions import HTTPException
 
 from db.models import Conversation
@@ -88,7 +89,7 @@ class ConversationModelView(SafeModelView):
         FilterByUtteranceText(column=None, name='utterance_text'),
         FilterByTgId(column=None, name='tg_id')
     )
-
+    list_template = 'admin/model/custom_list.html'
     column_formatters = {
         'id': _alexa_id_formatter,
         'tg_id': lambda v, c, m, n: m.__getattribute__(n)[:5]
@@ -97,6 +98,42 @@ class ConversationModelView(SafeModelView):
     column_default_sort = ('date_start', True)
 
     page_size = 1000
+
+    def render(self, template, **kwargs):
+        if template == 'admin/model/custom_list.html':
+            search = kwargs['search']
+            joins = {}
+            count_joins = {}
+
+            query = self.session.query(func.avg(Conversation.rating).label('avg'))
+            count_query = self.get_count_query() if not self.simple_list_pager else None
+
+            if hasattr(query, '_join_entities'):
+                for entity in query._join_entities:
+                    for table in entity.tables:
+                        joins[table] = None
+
+            # Apply search criteria
+            if self._search_supported and search:
+                query, count_query, joins, count_joins = self._apply_search(query,
+                                                                            count_query,
+                                                                            joins,
+                                                                            count_joins,
+                                                                            search)
+
+            # Apply filters
+            if kwargs['active_filters'] and self._filters:
+                query, count_query, joins, count_joins = self._apply_filters(query,
+                                                                             count_query,
+                                                                             joins,
+                                                                             count_joins,
+                                                                             kwargs['active_filters'])
+
+            for j in self._auto_joins:
+                query = query.options(joinedload(j))
+            # we are only interested in the list page
+            kwargs['avg_rating'] = f'{query.first()[0]:.3f}'
+        return super(ConversationModelView, self).render(template, **kwargs)
 
     def get_count_query(self):
         return self.session.query(func.count(self.model.id.distinct())).select_from(self.model)
