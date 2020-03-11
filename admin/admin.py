@@ -132,7 +132,10 @@ class ConversationModelView(SafeModelView):
             for j in self._auto_joins:
                 query = query.options(joinedload(j))
             # we are only interested in the list page
-            kwargs['avg_rating'] = f'{query.first()[0]:.3f}'
+            result = query.first()[0]
+            if result is not None:
+                result = f'{result:.3f}'
+            kwargs['avg_rating'] = result
         return super(ConversationModelView, self).render(template, **kwargs)
 
     def get_count_query(self):
