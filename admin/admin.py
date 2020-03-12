@@ -85,6 +85,14 @@ class FilterByVersion(BaseSQLAFilter):
     def operation(self):
         return u'equals'
 
+class FilterByVersionList(BaseSQLAFilter):
+    def apply(self, query, value, alias=None):
+        versions = ', '.join([f"'{v.strip()}'" for v in value.split(',')])
+        return query.filter(text(f"conversation.id in (select distinct utterance.conversation_id from utterance where utterance.attributes->>'version' in ({versions}))"))
+
+    def operation(self):
+        return u'in list'
+
 
 class ConversationModelView(SafeModelView):
     column_list = ('id',  'length', 'date_start', 'feedback', 'rating', 'tg_id')
@@ -96,7 +104,8 @@ class ConversationModelView(SafeModelView):
         FilterByActiveSkill(column=None, name='active_skill'),
         FilterByUtteranceText(column=None, name='utterance_text'),
         FilterByTgId(column=None, name='tg_id'),
-        FilterByVersion(column=None, name='version')
+        FilterByVersion(column=None, name='version'),
+        FilterByVersionList(column=None, name='version')
     )
     list_template = 'admin/model/custom_list.html'
     column_formatters = {
