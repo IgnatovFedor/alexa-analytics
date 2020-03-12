@@ -11,7 +11,7 @@ from flask_basicauth import BasicAuth
 from jinja2 import Markup
 from sqlalchemy.orm.session import Session
 from sqlalchemy.orm.strategy_options import joinedload
-from sqlalchemy.sql import func
+from sqlalchemy.sql import func, text
 from werkzeug.exceptions import HTTPException
 
 from db.models import Conversation
@@ -51,7 +51,7 @@ def _alexa_id_formatter(view, context, model: Conversation, name):
 class FilterByActiveSkill(BaseSQLAFilter):
     # Override to create an appropriate query and apply a filter to said query with the passed value from the filter UI
     def apply(self, query, value, alias=None):
-        return query.join(Conversation.utterances).filter(Utterance.active_skill == value)
+        return query.filter(text(f"conversation.id in (select distinct utterance.conversation_id from utterance where utterance.active_skill = '{value}')"))
 
     # readable operation name. This appears in the middle filter line drop-down
     def operation(self):
@@ -61,7 +61,7 @@ class FilterByActiveSkill(BaseSQLAFilter):
 class FilterByUtteranceText(BaseSQLAFilter):
     # Override to create an appropriate query and apply a filter to said query with the passed value from the filter UI
     def apply(self, query, value, alias=None):
-        return query.join(Conversation.utterances).filter(Utterance.text.contains(value))
+        return query.filter(text(f"conversation.id in (select distinct utterance.conversation_id from utterance where utterance.text LIKE '%{value}%')"))
 
     # readable operation name. This appears in the middle filter line drop-down
     def operation(self):
@@ -78,6 +78,14 @@ class FilterByTgId(BaseSQLAFilter):
         return u'contains'
 
 
+class FilterByVersion(BaseSQLAFilter):
+    def apply(self, query, value, alias=None):
+        return query.filter(text(f"conversation.id in (select distinct utterance.conversation_id from utterance where utterance.attributes->>'version' = '{value}')"))
+
+    def operation(self):
+        return u'equals'
+
+
 class ConversationModelView(SafeModelView):
     column_list = ('id',  'length', 'date_start', 'feedback', 'rating', 'tg_id')
     column_filters = (
@@ -87,7 +95,8 @@ class ConversationModelView(SafeModelView):
         'rating',
         FilterByActiveSkill(column=None, name='active_skill'),
         FilterByUtteranceText(column=None, name='utterance_text'),
-        FilterByTgId(column=None, name='tg_id')
+        FilterByTgId(column=None, name='tg_id'),
+        FilterByVersion(column=None, name='version')
     )
     list_template = 'admin/model/custom_list.html'
     column_formatters = {
@@ -137,9 +146,6 @@ class ConversationModelView(SafeModelView):
                 result = f'{result:.3f}'
             kwargs['avg_rating'] = result
         return super(ConversationModelView, self).render(template, **kwargs)
-
-    def get_count_query(self):
-        return self.session.query(func.count(self.model.id.distinct())).select_from(self.model)
 
     @action('export', 'Export')
     def action_export(self, ids):
