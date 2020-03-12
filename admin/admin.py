@@ -249,7 +249,6 @@ class FilterByRatingEmpty(BaseSQLAFilter, BaseBooleanFilter):
     def operation(self):
         return u'empty'
 
-
 def _utt_conv_id_formatter(view, context, model: Utterance, name):
     return Markup(f"<a href='/conversation/{model.conversation_id}'>{model.__getattribute__(name)}</a>")
 
@@ -309,6 +308,7 @@ class UtteranceModelView(SafeModelView):
 
             flash('Failed to export: {}'.format(str(e)), 'error')
 
+
 def start_admin(session: Session, user: str, password: str, port: int, amazon_container: str) -> None:
     @app.route('/conversation/<id>')
     def show(id: str):
@@ -317,13 +317,17 @@ def start_admin(session: Session, user: str, password: str, port: int, amazon_co
         utterances = list(conv.utterances)
 
         def format_annotations(utt: dict):
-            annot = json.dumps(
-                {
-                    'annotations': utt['annotations'],
-                    'hypotheses': utt.get('hypotheses', [])
-                }, indent=2)
-            return f'<pre>{annot}</pre>'
+            annotations = utt['annotations']
+            annotations = ''.join([f'<tr><td>{key}</td><td>{val}</td></tr>' for key, val in annotations.items()])
+            hypotheses = utt.get('hypotheses', [])
+            h2 = {}
+            for hyp in hypotheses:
+                hyp.pop('annotations', None)
+                h2[hyp.pop('skill_name')] = hyp
+            hypotheses = ''.join([f'<tr><td>{key}</td><td>{val}</td></tr>' for key, val in h2.items()])
+            return f'annotations:<table>{annotations}</table><br>hypotheses:<table>{hypotheses}</table>'
 
+        original_utts = []
         try:
             resp = requests.get(f'{amazon_container}/api/dialogs/{id}')
             if resp.status_code == 200:
