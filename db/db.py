@@ -37,6 +37,13 @@ class DBManager:
                 conv.length += len(conversation['utterances'])
 
             except NoResultFound:
+                conversation_id = None
+                for utter in conversation['utterances']:
+                    if 'attributes' in utter:
+                        attrs = utter['attributes']
+                        if 'conversation_id' in attrs:
+                            conversation_id = attrs['conversation_id']
+                            break
                 conv = Conversation(
                     id=conv_id,
                     date_start=self._parse_time(conversation['date_start']),
@@ -44,7 +51,7 @@ class DBManager:
                     human=conversation['human'],
                     bot=conversation['bot'],
                     length=len(conversation['utterances']),
-                    amazon_conv_id=conversation['utterances'][0]['attributes'].get('conversation_id')
+                    amazon_conv_id=conversation_id
                 )
 
             except MultipleResultsFound:
