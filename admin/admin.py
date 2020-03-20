@@ -1,6 +1,6 @@
 import json
-import requests
 
+import requests
 from flask import Flask, Response, redirect, flash
 from flask_admin import Admin
 from flask_admin.actions import action
@@ -9,8 +9,9 @@ from flask_admin.contrib.sqla.filters import BaseSQLAFilter
 from flask_admin.model.filters import BaseBooleanFilter
 from flask_basicauth import BasicAuth
 from jinja2 import Markup
-from sqlalchemy import func
 from sqlalchemy.orm.session import Session
+from sqlalchemy.orm.strategy_options import joinedload
+from sqlalchemy.sql import func, text
 from werkzeug.exceptions import HTTPException
 
 from db.models import Conversation
@@ -50,7 +51,7 @@ def _alexa_id_formatter(view, context, model: Conversation, name):
 class FilterByActiveSkill(BaseSQLAFilter):
     # Override to create an appropriate query and apply a filter to said query with the passed value from the filter UI
     def apply(self, query, value, alias=None):
-        return query.join(Conversation.utterances).filter(Utterance.active_skill == value)
+        return query.filter(text(f"conversation.id in (select distinct utterance.conversation_id from utterance where utterance.active_skill = '{value}')"))
 
     # readable operation name. This appears in the middle filter line drop-down
     def operation(self):
@@ -60,7 +61,7 @@ class FilterByActiveSkill(BaseSQLAFilter):
 class FilterByUtteranceText(BaseSQLAFilter):
     # Override to create an appropriate query and apply a filter to said query with the passed value from the filter UI
     def apply(self, query, value, alias=None):
-        return query.join(Conversation.utterances).filter(Utterance.text.contains(value))
+        return query.filter(text(f"conversation.id in (select distinct utterance.conversation_id from utterance where utterance.text LIKE '%{value}%')"))
 
     # readable operation name. This appears in the middle filter line drop-down
     def operation(self):
@@ -77,6 +78,22 @@ class FilterByTgId(BaseSQLAFilter):
         return u'contains'
 
 
+class FilterByVersion(BaseSQLAFilter):
+    def apply(self, query, value, alias=None):
+        return query.filter(text(f"conversation.id in (select distinct utterance.conversation_id from utterance where utterance.attributes->>'version' = '{value}')"))
+
+    def operation(self):
+        return u'equals'
+
+class FilterByVersionList(BaseSQLAFilter):
+    def apply(self, query, value, alias=None):
+        versions = ', '.join([f"'{v.strip()}'" for v in value.split(',')])
+        return query.filter(text(f"conversation.id in (select distinct utterance.conversation_id from utterance where utterance.attributes->>'version' in ({versions}))"))
+
+    def operation(self):
+        return u'in list'
+
+
 class ConversationModelView(SafeModelView):
     column_list = ('id',  'length', 'date_start', 'feedback', 'rating', 'tg_id')
     column_filters = (
@@ -86,9 +103,11 @@ class ConversationModelView(SafeModelView):
         'rating',
         FilterByActiveSkill(column=None, name='active_skill'),
         FilterByUtteranceText(column=None, name='utterance_text'),
-        FilterByTgId(column=None, name='tg_id')
+        FilterByTgId(column=None, name='tg_id'),
+        FilterByVersion(column=None, name='version'),
+        FilterByVersionList(column=None, name='version')
     )
-
+    list_template = 'admin/model/custom_list.html'
     column_formatters = {
         'id': _alexa_id_formatter,
         'tg_id': lambda v, c, m, n: m.__getattribute__(n)[:5]
@@ -98,8 +117,44 @@ class ConversationModelView(SafeModelView):
 
     page_size = 1000
 
-    def get_count_query(self):
-        return self.session.query(func.count(self.model.id.distinct())).select_from(self.model)
+    def render(self, template, **kwargs):
+        if template == 'admin/model/custom_list.html':
+            search = kwargs['search']
+            joins = {}
+            count_joins = {}
+
+            query = self.session.query(func.avg(Conversation.rating).label('avg'))
+            count_query = self.get_count_query() if not self.simple_list_pager else None
+
+            if hasattr(query, '_join_entities'):
+                for entity in query._join_entities:
+                    for table in entity.tables:
+                        joins[table] = None
+
+            # Apply search criteria
+            if self._search_supported and search:
+                query, count_query, joins, count_joins = self._apply_search(query,
+                                                                            count_query,
+                                                                            joins,
+                                                                            count_joins,
+                                                                            search)
+
+            # Apply filters
+            if kwargs['active_filters'] and self._filters:
+                query, count_query, joins, count_joins = self._apply_filters(query,
+                                                                             count_query,
+                                                                             joins,
+                                                                             count_joins,
+                                                                             kwargs['active_filters'])
+
+            for j in self._auto_joins:
+                query = query.options(joinedload(j))
+            # we are only interested in the list page
+            result = query.first()[0]
+            if result is not None:
+                result = f'{result:.3f}'
+            kwargs['avg_rating'] = result
+        return super(ConversationModelView, self).render(template, **kwargs)
 
     @action('export', 'Export')
     def action_export(self, ids):
