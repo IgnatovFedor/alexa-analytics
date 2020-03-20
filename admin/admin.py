@@ -1,4 +1,5 @@
 import json
+from collections import defaultdict
 
 import requests
 from flask import Flask, Response, redirect, flash
@@ -320,10 +321,10 @@ def start_admin(session: Session, user: str, password: str, port: int, amazon_co
             annotations = utt['annotations']
             annotations = ''.join([f'<tr><td>{key}</td><td>{val}</td></tr>' for key, val in annotations.items()])
             hypotheses = utt.get('hypotheses', [])
-            h2 = {}
+            h2 = defaultdict(lambda: '')
             for hyp in hypotheses:
                 hyp.pop('annotations', None)
-                h2[hyp.pop('skill_name')] = hyp
+                h2[hyp.pop('skill_name')] += str(hyp) + '<br>'
             hypotheses = ''.join([f'<tr><td>{key}</td><td>{val}</td></tr>' for key, val in h2.items()])
             return f'annotations:<table>{annotations}</table><br>hypotheses:<table>{hypotheses}</table>'
 
