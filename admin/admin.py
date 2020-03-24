@@ -348,12 +348,17 @@ def start_admin(session: Session, user: str, password: str, port: int, amazon_co
             utts.append(
                 f'<tr bgcolor={"lightgray" if utt.active_skill else "white"}><td>{utt.active_skill or "Human"}</td><td><details><summary>{td}{utt.text}</summary>{original_utts[i] if original_utts else ""}</details></td></tr>'
             )
+        if utterances[0].attributes is not None:
+            ver = utterances[0].attributes.get('version')
+        else:
+            ver = None
         attrs = [
             f'id: {conv.amazon_conv_id}',
             f'user_telegram_id: {conv.human["user_telegram_id"]}',
             f'date_start: {conv.date_start}',
             f'rating: {conv.rating}',
-            f'feedback: {conv.feedback}'
+            f'feedback: {conv.feedback}',
+            f'version: {ver}'
         ]
         return "<style>details summary {display: block;}"\
                f"</style><table><tr>{'<br>'.join(attrs)}</tr>{''.join(utts)}</table>"
