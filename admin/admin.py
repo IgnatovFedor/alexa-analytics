@@ -62,6 +62,7 @@ class FilterByActiveSkill(BaseSQLAFilter):
 class FilterByUtteranceText(BaseSQLAFilter):
     # Override to create an appropriate query and apply a filter to said query with the passed value from the filter UI
     def apply(self, query, value, alias=None):
+        value = value.replace("'", "''")
         return query.filter(text(f"conversation.id in (select distinct utterance.conversation_id from utterance where utterance.text LIKE '%{value}%')"))
 
     # readable operation name. This appears in the middle filter line drop-down
