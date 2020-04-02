@@ -84,7 +84,7 @@ class DBManager:
         for _, row in df.iterrows():
             try:
                 conversation = self._session.query(Conversation).filter_by(amazon_conv_id=row['Conversation ID']).one()
-                conversation.rating = row['Rating']
+                conversation.rating = row['Rating'].replace('*', '')
             except MultipleResultsFound:
                 #TODO: make proper error handling
                 log.error(f'Multiple conversations found for ID: {row["Conversation ID"]}')
