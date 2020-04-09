@@ -28,7 +28,7 @@ class DBManager:
     def add_hour_logs(self, dblogs: list, skip_tg: bool) -> None:
         conversations_added = 0
         for conversation in dblogs:
-            if skip_tg and conversation['utterances'][0]['attributes'].get('conversation_id') is None:
+            if skip_tg and conversation['utterances'][0].get('attributes', {}).get('conversation_id') is None:
                 continue
             conv_id = conversation['id']
             try:
