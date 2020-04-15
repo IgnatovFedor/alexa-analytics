@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import timedelta, datetime
 from logging import getLogger
 from time import sleep
 from typing import List
@@ -37,9 +37,11 @@ def update_db(s3: S3Manager, db: DBManager, last_utt_time, skip_tg: bool):
 
 
 def start_polling(s3s: List[S3Manager], db: DBManager):
-    # TODO: make better update timeout (to update exactly after new hour)
     while True:
         last_utt_time = db.get_last_utterance_time()
         for s3 in s3s:
             update_db(s3, db, last_utt_time, s3.skip_tg)
-        sleep(3600)
+        now = datetime.now()
+        sleep_for = timedelta(hours=1) - (now - now.replace(minute=5, second=0))
+        log.info(f'Started sleep for {sleep_for}')
+        sleep(sleep_for.seconds)
