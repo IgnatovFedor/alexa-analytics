@@ -171,6 +171,7 @@ class ConversationModelView(SafeModelView):
             if conversations:
                 conversations = [{
                     'id': conv.id,
+                    'rating': conv.rating,
                     'utterances': [
                         {
                             'text': utt.text,
