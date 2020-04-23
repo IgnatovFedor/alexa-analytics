@@ -167,31 +167,31 @@ class ConversationModelView(SafeModelView):
             _, query = self.get_list(view_args.page, sort_column, view_args.sort_desc, view_args.search,
                                      view_args.filters, execute=False)
 
-            conversations = self.session.query(Conversation).filter(Conversation.id.in_(ids))
-            if conversations:
-                conversations = [{
-                    'id': conv.id,
-                    'rating': conv.rating,
-                    'utterances': [
-                        {
-                            'text': utt.text,
-                            'date_time': utt.date_time.strftime('%Y-%m-%d %H:%M:%S.%f'),
-                            'active_skill': utt.active_skill
-                        } if utt.active_skill is not None else {
-                            'text': utt.text,
-                            'date_time': utt.date_time.strftime('%Y-%m-%d %H:%M:%S.%f'),
-                            'attributes': utt.attributes
-                        }
-                        for utt in conv.utterances
-                    ],
-                    'human': conv.human,
-                    'bot': conv.bot,
-                    'date_start': conv.date_start.strftime('%Y-%m-%d %H:%M:%S.%f'),
-                    'date_finish': conv.date_finish.strftime('%Y-%m-%d %H:%M:%S.%f')
-                }
-                    for conv in conversations]
+            hands = self.session.execute(text(
+                f"""
+                select to_json(t)
+                from (
+                select c.id, c.rating, array_agg(u) as utterances, c.human, c.bot, 
+                    to_char(c.date_start, 'YYYY-MM-DD HH24:MI:SS.US') as date_start,
+                    to_char(c.date_finish, 'YYYY-MM-DD HH24:MI:SS.US') as date_finish
+                from conversation c
+                left join (
+                    select text,
+                        to_char(date_time, 'YYYY-MM-DD HH24:MI:SS.US') as date_time,
+                        active_skill,
+                        attributes,
+                        conversation_id
+                from utterance order by date_time
+                          ) u on u.conversation_id = c.id
+                where c.id in {tuple(ids)}
+                group by c.id
+                ) t             
+                """
+            ))
+            hands = [h[0] for h in hands]
+            if hands:
                 return (
-                    json.dumps(conversations, indent=4),
+                    json.dumps(hands, indent=4),
                     200,
                     {
                         'Content-Type': 'application/json',
