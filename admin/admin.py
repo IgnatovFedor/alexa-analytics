@@ -161,29 +161,12 @@ class ConversationModelView(SafeModelView):
     @action('export', 'Export')
     def action_export(self, ids):
         try:
-            view_args = self._get_list_extra_args()
-            sort_column = self._get_column_by_idx(view_args.sort)
-
-            _, query = self.get_list(view_args.page, sort_column, view_args.sort_desc, view_args.search,
-                                     view_args.filters, execute=False)
-
             conversations = self.session.query(Conversation).filter(Conversation.id.in_(ids))
             if conversations:
                 conversations = [{
                     'id': conv.mgid,
                     'rating': conv.rating,
-                    'utterances': [
-                        {
-                            'text': utt.text,
-                            'date_time': utt.date_time.strftime('%Y-%m-%d %H:%M:%S.%f'),
-                            'active_skill': utt.active_skill
-                        } if utt.active_skill is not None else {
-                            'text': utt.text,
-                            'date_time': utt.date_time.strftime('%Y-%m-%d %H:%M:%S.%f'),
-                            'attributes': utt.attributes
-                        }
-                        for utt in conv.utterances
-                    ],
+                    'utterances': conv.raw_utterances,
                     'human': conv.human,
                     'bot': conv.bot,
                     'date_start': conv.date_start.strftime('%Y-%m-%d %H:%M:%S.%f'),

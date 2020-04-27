@@ -41,6 +41,7 @@ class DBManager:
                 conversation['utterances'] = conversation['utterances'][conv.utterances.count():]
                 conv.length += len(conversation['utterances'])
                 conv.date_finish = finish
+                conv.raw_utterances = conversation['utterances']
             except NoResultFound:
                 conversation_id = None
                 for utter in conversation['utterances']:
@@ -57,7 +58,8 @@ class DBManager:
                     human=conversation['human'],
                     bot=conversation['bot'],
                     length=len(conversation['utterances']),
-                    amazon_conv_id=conversation_id
+                    amazon_conv_id=conversation_id,
+                    raw_utterances=conversation['utterances']
                 )
 
             except MultipleResultsFound:
@@ -87,7 +89,7 @@ class DBManager:
         return time
 
     def add_ratings(self, df: DataFrame):
-        for _, row in df.iterrows():
+        for i, row in df.iterrows():
             try:
                 conversation = self._session.query(Conversation).filter_by(amazon_conv_id=row['Conversation ID']).one()
                 conversation.rating = row['Rating'].replace('*', '')
@@ -96,10 +98,12 @@ class DBManager:
                 log.error(f'Multiple conversations found for ID: {row["Conversation ID"]}')
             except NoResultFound:
                 pass
+            if i%100 == 0:
+                self._session.commit()
         self._session.commit()
 
     def add_feedbacks(self, df: DataFrame):
-        for _, row in df.iterrows():
+        for i, row in df.iterrows():
             try:
                 conversation = self._session.query(Conversation).filter_by(amazon_conv_id=row['conversation_id']).one()
                 conversation.rating = conversation.rating or row['rating']
@@ -109,6 +113,8 @@ class DBManager:
                 log.error(f'Multiple conversations found for ID: {row["Conversation ID"]}')
             except NoResultFound:
                 pass
+            if i%100 == 0:
+                self._session.commit()
         self._session.commit()
 
     def get_last_utterance_time(self):

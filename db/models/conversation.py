@@ -15,6 +15,7 @@ class Conversation(BaseModel):
     date_finish = Column(TIMESTAMP, nullable=False)
     human = Column(JSONB, nullable=False)
     bot = Column(JSONB, nullable=False)
+    raw_utterances = Column(JSONB, nullable=False)
 
     length = Column(Integer, nullable=False)
     feedback = Column(UnicodeText, nullable=True)
