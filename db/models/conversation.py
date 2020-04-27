@@ -8,7 +8,8 @@ from db.models.base import BaseModel
 
 class Conversation(BaseModel):
     __tablename__ = 'conversation'
-    id = Column(CHAR(24), unique=True, nullable=False, primary_key=True)
+    id = Column(CHAR(34), unique=True, nullable=False, primary_key=True)
+    mgid = Column(CHAR(24), nullable=False)
 
     date_start = Column(TIMESTAMP, nullable=False)
     date_finish = Column(TIMESTAMP, nullable=False)

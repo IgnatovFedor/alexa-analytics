@@ -15,7 +15,7 @@ class Utterance(BaseModel):
     active_skill = Column(VARCHAR(255), nullable=True)
     attributes = Column(JSONB, nullable=True)
 
-    conversation_id = Column(CHAR(24), ForeignKey('conversation.id'), nullable=False)
+    conversation_id = Column(CHAR(34), ForeignKey('conversation.id'), nullable=False)
 
     conversation = relationship('Conversation', back_populates='utterances')
 

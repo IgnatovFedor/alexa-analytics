@@ -1,10 +1,10 @@
+import time
 from datetime import datetime
 from logging import getLogger
 
 from pandas import DataFrame
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.orm.session import Session
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 from sqlalchemy.orm.session import Session
 
@@ -30,7 +30,7 @@ class DBManager:
         for conversation in dblogs:
             if skip_tg and conversation['utterances'][0].get('attributes', {}).get('conversation_id') is None:
                 continue
-            conv_id = conversation['id']
+            conv_id = conversation['id'] + str(int(time.mktime(self._parse_time(conversation['date_start']).timetuple())))
             try:
                 conv = self._session.query(Conversation).filter_by(id=conv_id).one()
                 conversation['utterances'] = conversation['utterances'][conv.utterances.count():]
@@ -46,6 +46,7 @@ class DBManager:
                             break
                 conv = Conversation(
                     id=conv_id,
+                    mgid=conversation['id'],
                     date_start=self._parse_time(conversation['date_start']),
                     date_finish=self._parse_time(conversation['date_finish']),
                     human=conversation['human'],

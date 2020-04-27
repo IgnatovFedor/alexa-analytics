@@ -46,7 +46,7 @@ class SafeModelView(ModelView):
 
 
 def _alexa_id_formatter(view, context, model: Conversation, name):
-    return Markup(f"<a href='/conversation/{model.id}'>{model.__getattribute__(name)}</a>")
+    return Markup(f"<a href='/conversation/{model.id}'>{model.mgid}</a>")
 
 
 class FilterByActiveSkill(BaseSQLAFilter):
@@ -170,7 +170,7 @@ class ConversationModelView(SafeModelView):
             conversations = self.session.query(Conversation).filter(Conversation.id.in_(ids))
             if conversations:
                 conversations = [{
-                    'id': conv.id,
+                    'id': conv.mgid,
                     'rating': conv.rating,
                     'utterances': [
                         {
@@ -253,7 +253,7 @@ class FilterByRatingEmpty(BaseSQLAFilter, BaseBooleanFilter):
         return u'empty'
 
 def _utt_conv_id_formatter(view, context, model: Utterance, name):
-    return Markup(f"<a href='/conversation/{model.conversation_id}'>{model.__getattribute__(name)}</a>")
+    return Markup(f"<a href='/conversation/{model.conversation_id}'>{model.__getattribute__(name)[:24]}</a>")
 
 
 class UtteranceModelView(SafeModelView):
@@ -330,9 +330,8 @@ def start_admin(session: Session, user: str, password: str, port: int, amazon_co
             hypotheses = ''.join([f'<tr><td>{key}</td><td>{val}</td></tr>' for key, val in h2.items()])
             return f'annotations:<table>{annotations}</table><br>hypotheses:<table>{hypotheses}</table>'
 
-        original_utts = []
         try:
-            resp = requests.get(f'{amazon_container}/api/dialogs/{id}')
+            resp = requests.get(f'{amazon_container}/api/dialogs/{conv.mgid}')
             if resp.status_code == 200:
                 original_utts = resp.json().get('utterances', [])
                 if original_utts:
