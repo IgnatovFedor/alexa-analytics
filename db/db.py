@@ -1,5 +1,5 @@
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from logging import getLogger
 
 from pandas import DataFrame
@@ -30,12 +30,17 @@ class DBManager:
         for conversation in dblogs:
             if skip_tg and conversation['utterances'][0].get('attributes', {}).get('conversation_id') is None:
                 continue
-            conv_id = conversation['id'] + str(int(time.mktime(self._parse_time(conversation['date_start']).timetuple())))
+            start = self._parse_time(conversation['date_start'])
+            finish = self._parse_time(conversation['date_finish'])
+            if finish - start > timedelta(hours=6):
+                log.info(f'Conversation {conversation["id"]} duration is greater than 6 hours. Countinue...')
+                continue
+            conv_id = conversation['id'] + str(int(time.mktime(start.timetuple())))
             try:
-                conv = self._session.query(Conversation).filter_by(id=conv_id).one()
+                conv: Conversation = self._session.query(Conversation).filter_by(id=conv_id).one()
                 conversation['utterances'] = conversation['utterances'][conv.utterances.count():]
                 conv.length += len(conversation['utterances'])
-
+                conv.date_finish = finish
             except NoResultFound:
                 conversation_id = None
                 for utter in conversation['utterances']:
@@ -47,8 +52,8 @@ class DBManager:
                 conv = Conversation(
                     id=conv_id,
                     mgid=conversation['id'],
-                    date_start=self._parse_time(conversation['date_start']),
-                    date_finish=self._parse_time(conversation['date_finish']),
+                    date_start=start,
+                    date_finish=finish,
                     human=conversation['human'],
                     bot=conversation['bot'],
                     length=len(conversation['utterances']),
