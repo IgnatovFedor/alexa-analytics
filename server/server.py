@@ -23,6 +23,7 @@ def update_db(s3: S3Manager, db: DBManager, last_utt_time, skip_tg: bool):
 
     log.info('utterances updated')
     ratings = s3.get_ratings()
+    print('ratings downloaded')
     if last_utt_time is not None:
         last_utt_time = last_utt_time - timedelta(days=2)
         ratings = ratings[ratings['Approximate Start Time'] > last_utt_time]
@@ -30,6 +31,7 @@ def update_db(s3: S3Manager, db: DBManager, last_utt_time, skip_tg: bool):
     log.info('ratings updated')
 
     feedbacks = s3.get_feedback()
+    print('feedbacks downloaded')
 #    if last_utt_time is not None:
 #        feedbacks = feedbacks[feedbacks['conversation_start_time'] > last_utt_time]
     db.add_feedbacks(feedbacks)

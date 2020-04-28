@@ -99,6 +99,7 @@ class DBManager:
             except NoResultFound:
                 pass
             if i%100 == 0:
+                print(f'Ratings: {i}')
                 self._session.commit()
         self._session.commit()
 
@@ -114,6 +115,7 @@ class DBManager:
             except NoResultFound:
                 pass
             if i%100 == 0:
+                print(f'Feedbacks: {i}')
                 self._session.commit()
         self._session.commit()
 
