@@ -7,7 +7,6 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 from sqlalchemy.orm.session import Session
-from sqlalchemy.sql import text
 
 from db.models import Base, Conversation, Utterance
 
@@ -92,7 +91,8 @@ class DBManager:
     def add_ratings(self, df: DataFrame):
         for i, row in df.iterrows():
             try:
-                self._session.execute(text(f"update conversation set rating = {row['Rating'].replace('*', '')} where amazon_conv_id = '{row['Conversation ID']}'"))
+                conversation = self._session.query(Conversation).filter_by(amazon_conv_id=row['Conversation ID']).one()
+                conversation.rating = row['Rating'].replace('*', '')
             except MultipleResultsFound:
                 #TODO: make proper error handling
                 log.error(f'Multiple conversations found for ID: {row["Conversation ID"]}')
@@ -106,8 +106,9 @@ class DBManager:
     def add_feedbacks(self, df: DataFrame):
         for i, row in df.iterrows():
             try:
-                self._session.execute(text(
-                    f"""update conversation set feedback = '{row['feedback'].replace("'","''")}' where amazon_conv_id = '{row['conversation_id']}'"""))
+                conversation = self._session.query(Conversation).filter_by(amazon_conv_id=row['conversation_id']).one()
+                conversation.rating = conversation.rating or row['rating']
+                conversation.feedback = row['feedback']
             except MultipleResultsFound:
                 # TODO: make proper error handling
                 log.error(f'Multiple conversations found for ID: {row["Conversation ID"]}')
