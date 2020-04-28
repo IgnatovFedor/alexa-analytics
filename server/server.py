@@ -11,7 +11,7 @@ from server.s3 import S3Manager
 log = getLogger(__name__)
 
 
-def update_db(s3: S3Manager, db: DBManager, last_utt_time, skip_tg: bool):
+def update_utts(s3: S3Manager, db: DBManager, last_utt_time, skip_tg: bool):
     last_utt_time_with_tz = last_utt_time.replace(tzinfo=UTC) if last_utt_time is not None else None
     for content in s3.get_all_interval_logs():
         if last_utt_time is not None and content['LastModified'] < last_utt_time_with_tz:
@@ -22,8 +22,11 @@ def update_db(s3: S3Manager, db: DBManager, last_utt_time, skip_tg: bool):
         db.add_hour_logs(json, skip_tg)
 
     log.info('utterances updated')
+
+
+def update_info(s3: S3Manager, db: DBManager, last_utt_time):
     ratings = s3.get_ratings()
-    print('ratings downloaded')
+    log.info('ratings downloaded')
     if last_utt_time is not None:
         last_utt_time = last_utt_time - timedelta(days=2)
         ratings = ratings[ratings['Approximate Start Time'] > last_utt_time]
@@ -31,7 +34,7 @@ def update_db(s3: S3Manager, db: DBManager, last_utt_time, skip_tg: bool):
     log.info('ratings updated')
 
     feedbacks = s3.get_feedback()
-    print('feedbacks downloaded')
+    log.info('feedbacks downloaded')
 #    if last_utt_time is not None:
 #        feedbacks = feedbacks[feedbacks['conversation_start_time'] > last_utt_time]
     db.add_feedbacks(feedbacks)
@@ -42,7 +45,8 @@ def start_polling(s3s: List[S3Manager], db: DBManager):
     while True:
         last_utt_time = db.get_last_utterance_time()
         for s3 in s3s:
-            update_db(s3, db, last_utt_time, s3.skip_tg)
+            update_utts(s3, db, last_utt_time, s3.skip_tg)
+        update_info(s3s[0], db, last_utt_time)
         now = datetime.now()
         sleep_for = timedelta(hours=1) - (now - now.replace(minute=5, second=0))
         log.info(f'Started sleep for {sleep_for}')
