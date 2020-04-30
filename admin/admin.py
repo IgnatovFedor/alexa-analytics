@@ -14,6 +14,7 @@ from sqlalchemy.orm.session import Session
 from sqlalchemy.orm.strategy_options import joinedload
 from sqlalchemy.sql import func, text
 from werkzeug.exceptions import HTTPException
+from sqlalchemy.orm.exc import NoResultFound
 
 from db.models import Conversation
 from db.models.utterance import Utterance
@@ -298,7 +299,12 @@ class UtteranceModelView(SafeModelView):
 def start_admin(session: Session, user: str, password: str, port: int, amazon_container: str) -> None:
     @app.route('/conversation/<id>')
     def show(id: str):
-        conv = session.query(Conversation).filter_by(id=id).one()
+        try:
+            conv = session.query(Conversation).filter_by(id=id).one()
+        except NoResultFound:
+            conv = session.query(Conversation).filter_by(mgid=id).one()
+        except Exception as e:
+            return repr(e)
         utts = []
         utterances = list(conv.utterances)
 
