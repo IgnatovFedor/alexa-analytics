@@ -38,10 +38,10 @@ class DBManager:
             conv_id = conversation['id'] + str(int(time.mktime(start.timetuple())))
             try:
                 conv: Conversation = self._session.query(Conversation).filter_by(id=conv_id).one()
+                conv.raw_utterances = conversation['utterances']
                 conversation['utterances'] = conversation['utterances'][conv.utterances.count():]
                 conv.length += len(conversation['utterances'])
                 conv.date_finish = finish
-                conv.raw_utterances = conversation['utterances']
             except NoResultFound:
                 conversation_id = None
                 for utter in conversation['utterances']:
