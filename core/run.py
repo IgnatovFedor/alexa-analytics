@@ -8,7 +8,7 @@ from server.server import start_polling
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument('mode', help='select a mode: server or poller', type=str, choices={'server', 'poller'})
+parser.add_argument('mode', help='select a mode: server or poller', type=str, choices={'server', 'poller', 'dpa_dumper'})
 parser.add_argument('-p', '--port', help='select admin port', type=int, default=5000)
 parser.add_argument('-ac', '--amazon-container', help='http of container to get additional info', type=str)
 
@@ -46,6 +46,9 @@ def main():
         admin = config['admin']
         start_admin(session, admin['user'], admin['password'], args.port, args.amazon_container)
 
+    if args.mode == 'dpa_dumper':
+        from server.dump_new_dialogs_from_dpagent import dump_new_dialogs
+        dump_new_dialogs(session)
 
 if __name__ == "__main__":
     main()
