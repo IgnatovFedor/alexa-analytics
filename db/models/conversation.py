@@ -29,4 +29,5 @@ class Conversation(BaseModel):
     # TODO: Make tg_id searchable with placing users and bots to different table
     @hybrid_property
     def tg_id(self):
-        return self.human['user_telegram_id']
+        # TODO rename property for more general case!
+        return self.human['user_external_id']

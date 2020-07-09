@@ -74,7 +74,7 @@ class FilterByUtteranceText(BaseSQLAFilter):
 class FilterByTgId(BaseSQLAFilter):
     # Override to create an appropriate query and apply a filter to said query with the passed value from the filter UI
     def apply(self, query, value, alias=None):
-        return query.filter(Conversation.human['user_telegram_id'].astext.contains(value))
+        return query.filter(Conversation.human['user_external_id'].astext.contains(value))
 
     # readable operation name. This appears in the middle filter line drop-down
     def operation(self):
@@ -320,7 +320,7 @@ def start_admin(session: Session, user: str, password: str, port: int, amazon_co
             return f'annotations:<table>{annotations}</table><br>hypotheses:<table>{hypotheses}</table>'
 
         try:
-            resp = requests.get(f'{amazon_container}/api/dialogs/{conv.mgid}')
+            resp = requests.get(f'{amazon_container}/api/dialogs/{conv.id}')
             if resp.status_code == 200:
                 original_utts = resp.json().get('utterances', [])
                 if original_utts:
@@ -343,8 +343,8 @@ def start_admin(session: Session, user: str, password: str, port: int, amazon_co
         else:
             ver = None
         attrs = [
-            f'id: {conv.amazon_conv_id}',
-            f'user_telegram_id: {conv.human["user_telegram_id"]}',
+            f'id: {conv.id}',
+            f'user_id: {conv.human["user_external_id"]}',
             f'date_start: {conv.date_start}',
             f'rating: {conv.rating}',
             f'feedback: {conv.feedback}',
