@@ -48,7 +48,7 @@ def main():
 
     if args.mode == 'dpa_dumper':
         from server.dump_new_dialogs_from_dpagent import dump_new_dialogs
-        dump_new_dialogs(session)
+        dump_new_dialogs(session, dpagent_base_url=args.amazon_container)
 
 if __name__ == "__main__":
     main()

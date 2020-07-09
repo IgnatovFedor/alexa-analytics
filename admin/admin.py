@@ -320,7 +320,9 @@ def start_admin(session: Session, user: str, password: str, port: int, amazon_co
             return f'annotations:<table>{annotations}</table><br>hypotheses:<table>{hypotheses}</table>'
 
         try:
-            resp = requests.get(f'{amazon_container}/api/dialogs/{conv.id}')
+
+            url = f'{amazon_container}/api/dialogs/{conv.id}'
+            resp = requests.get(url)
             if resp.status_code == 200:
                 original_utts = resp.json().get('utterances', [])
                 if original_utts:

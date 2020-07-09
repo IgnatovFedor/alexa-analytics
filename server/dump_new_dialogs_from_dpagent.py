@@ -88,7 +88,7 @@ class DPADumper():
         return remote_data
 
 
-def dump_new_dialogs(session):
+def dump_new_dialogs(session, dpagent_base_url="http://0.0.0.0:4242"):
     # get the latest dialog from local db
     # then iteratively collect dialog ids in the DPAgent dialog_list_ids API until meet existing
     # then iteratively grab each dialog to local db
@@ -104,10 +104,10 @@ def dump_new_dialogs(session):
 
     ######################################################################
     # request dp_agent api for list of dialogs
-    dpad = DPADumper(dpa_base_url="http://0.0.0.0:4242")
+    dpad = DPADumper(dpa_base_url=dpagent_base_url)
 
     page_suffix = "?limit=5"
-    import ipdb; ipdb.set_trace()
+    # import ipdb; ipdb.set_trace()
 
     while page_suffix is not None:
         # TODO make DP-Agent to return new dialogs first
