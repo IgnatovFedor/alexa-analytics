@@ -19,6 +19,10 @@ class Utterance(BaseModel):
 
     conversation = relationship('Conversation', back_populates='utterances')
 
+    annotations = relationship("Annotation", back_populates="parent_utterance")
+
+    utterance_hypotheses = relationship("UtteranceHypothesis", back_populates="parent_utterance")
+
     @hybrid_property
     def rating(self):
         return self.conversation.rating

@@ -20,6 +20,13 @@ def get_session(user: str, password: str, host: str, dbname: str) -> Session:
     session_maker = sessionmaker(bind=engine)
     return session_maker()
 
+def drop_all_tables(session):
+    engine = session.get_bind()
+    Base.metadata.create_all(engine)
+    Base.metadata.drop_all(bind=engine)
+    # session.commit()
+    log.info(f'All tables are deleted from DB!')
+
 
 class DBManager:
     def __init__(self, session: Session):
@@ -125,3 +132,5 @@ class DBManager:
             return utterance.date_time
         else:
             return None
+
+

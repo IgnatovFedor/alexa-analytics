@@ -6,8 +6,11 @@ import urllib.request, json
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 from db.models.conversation import Conversation
 from db.models.utterance import Utterance
+from db.models.annotation import Annotation
+from db.models.utterance_hypothesis import UtteranceHypothesis
 from db.db import DBManager
 import logging
+from copy import copy
 # from server.s3 import S3Manager
 # from server.server import start_polling
 logger = logging.getLogger(__name__)
@@ -137,18 +140,70 @@ def dump_new_dialogs(session, dpagent_base_url="http://0.0.0.0:4242"):
                         length=len(dialog_data['utterances']),
                         raw_utterances=dialog_data['utterances']
                     )
-                    for utterance in dialog_data['utterances']:
+                    session.add(conv)
+                    session.commit()
+
+                    for utt_idx, utterance in enumerate(dialog_data['utterances']):
                         utt = Utterance(text=utterance['text'],
                                         date_time=DBManager._parse_time(utterance['date_time']),
                                         active_skill=utterance.get('active_skill'),
                                         attributes=utterance.get('attributes'),
                                         conversation_id=conv_id)
                         session.add(utt)
+                        session.commit()
 
-                    session.add(conv)
-                    session.commit()
+                        # ANNOTATIONS:
+                        # import ipdb; ipdb.set_trace()
+                        try:
+                            for each_anno_key, each_anno_dict in dialog_data['utterances'][utt_idx][
+                                'annotations'].items():
+                                # anno, _ = Annotation.objects.get_or_create(
+                                anno = Annotation(
+                                    parent_utterance_id=utt.id,
+                                    annotation_type=each_anno_key,
+                                    annotation_data=each_anno_dict
+                                )
+                                session.add(anno)
+                            session.commit()
+                        except Exception as e:
+                            print(e)
+                            import ipdb;
+                            ipdb.set_trace()
+                            print("Investigate")
+
+
+                        # TODO hypotheses
+                        # HYPOTHESES:
+                        if 'hypotheses' in dialog_data['utterances'][utt_idx]:
+                            for each_hypo in dialog_data['utterances'][utt_idx]['hypotheses']:
+
+                                # lets add dictionary with extra attributes from skills:
+                                other_attrs = copy(each_hypo)
+                                del other_attrs['skill_name']
+                                del other_attrs['text']
+                                del other_attrs['confidence']
+                                try:
+                                    # anno, _ = UtteranceHypothesis.objects.get_or_create(
+                                    hypo = UtteranceHypothesis(
+                                        parent_utterance_id=utt.id,
+                                        skill_name=each_hypo['skill_name'],
+                                        text=each_hypo['text'],
+                                        confidence=each_hypo['confidence'],
+                                        other_attrs=other_attrs
+                                    )
+                                    session.add(hypo)
+                                    session.commit()
+                                except Exception as e:
+                                    print(e)
+                                    import ipdb;
+                                    ipdb.set_trace()
+                                    print("Investigate")
+
+
+
+                    # commit the stuff
+
                     logger.info(f'Successfully added a new conversation {conv_id} to local DB.')
-
             # find dialog ids that are missed
         else:
             logger.warning("No dialogs in DP-Agent!")
