@@ -1,0 +1,114 @@
+{% extends 'admin/model/details.html' %}
+{% import 'admin/lib.html' as lib with context %}
+
+{% block body %}
+  {% block navlinks %}
+    {{super()}}
+  <!--<ul class="nav nav-tabs">-->
+    <!--<li>-->
+        <!--<a href="{{ return_url }}">{{ _gettext('List') }}</a>-->
+    <!--</li>-->
+    <!--{%- if admin_view.can_create -%}-->
+    <!--<li>-->
+        <!--<a href="{{ get_url('.create_view', url=return_url) }}">{{ _gettext('Create') }}</a>-->
+    <!--</li>-->
+    <!--{%- endif -%}-->
+    <!--{%- if admin_view.can_edit -%}-->
+    <!--<li>-->
+        <!--<a href="{{ get_url('.edit_view', id=request.args.get('id'), url=return_url) }}">{{ _gettext('Edit') }}</a>-->
+    <!--</li>-->
+    <!--{%- endif -%}-->
+    <!--<li class="active">-->
+        <!--<a href="javascript:void(0)">{{ _gettext('Details') }}</a>-->
+    <!--</li>-->
+  <!--</ul>-->
+  {% endblock %}
+
+  {% block details_search %}
+    <!--<div class="input-group fa_filter_container col-lg-6">-->
+      <!--<span class="input-group-addon">{{ _gettext('Filter') }}</span>-->
+      <!--<input id="fa_filter" type="text" class="form-control">-->
+    <!--</div>-->
+    {{super()}}
+  {% endblock %}
+
+  {% block details_table %}
+<!--######################################################################-->
+    <div id="Fedya_conversation_view">
+        <h2>Conversation view</h2>
+        <table>
+        {% for utt in model.utterances %}
+            {%- if utt.active_skill -%}
+                <tr bgcolor="lightgray">
+                    {%- else -%}
+                <tr bgcolor="white">
+            {%- endif -%}
+            <td>{{utt.author}}</td>
+            <td>
+            <details>
+                <summary>
+                {{utt.text}}
+                </summary>
+
+                <h5>Annotations</h5>
+                <table class="annotations">
+                    <tr>
+                        <th>Annotator</th>
+                        <th>Data</th>
+                    </tr>
+                {% for anno in utt.annotations %}
+                    <tr>
+                        <td>{{anno.annotation_type}}</td>
+                        <td>{{anno.annotation_data}}</td>
+                    </tr>
+                {% endfor %}
+                </table>
+
+                {%- if utt.hypotheses -%}
+                    <h5>Utterance Hypotheses</h5>
+                    <table class="hypotheses">
+                        <tr>
+                            <th>Skill Name</th>
+                            <th>Confidence</th>
+                            <th>Text</th>
+                            <th>Other attrs</th>
+                        </tr>
+                        {% for hypo in utt.hypotheses %}
+                            <tr>
+                                <td>{{hypo.skill_name}}</td>
+                                <td>{{hypo.confidence}}</td>
+                                <td><b>{{hypo.text}}</b></td>
+                                <td>{{hypo.other_attrs}}</td>
+                            </tr>
+                        {% endfor %}
+                    </table>
+                {%- endif -%}
+            </details>
+            </td>
+            </tr>
+        {% endfor %}
+
+        </table>
+    </div>
+<!--######################################################################-->
+    <h2>Default view</h2>
+    <table class="table table-hover table-bordered searchable">
+    {% for c, name in details_columns %}
+      <tr>
+        <td>
+          <b>{{ name }}</b>
+        </td>
+        <td>
+        {{ get_value(model, c) }}
+        </td>
+      </tr>
+    {% endfor %}
+    </table>
+  {% endblock %}
+
+
+{% endblock %}
+
+{% block tail %}
+  {{ super() }}
+{% endblock %}

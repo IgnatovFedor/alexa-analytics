@@ -19,4 +19,4 @@ class Annotation(BaseModel):
     annotation_data = Column(JSONB, nullable=False)
 
     def __str__(self):
-        return "%s: %s" % (self.annotation_type, self.annotation_dict)
+        return "%s: %s" % (self.annotation_type, self.annotation_data)

@@ -30,3 +30,17 @@ class Utterance(BaseModel):
     @rating.expression
     def rating(cls):
         return select([Conversation.rating]).where(cls.conversation_id == Conversation.id)
+
+    def __str__(self):
+        return f"{self.author}: {self.text}"
+
+    @property
+    def hypotheses(self):
+        return self.utterance_hypotheses
+
+    @property
+    def author(self):
+        if not self.active_skill:
+            return "Human"
+        else:
+            return self.active_skill

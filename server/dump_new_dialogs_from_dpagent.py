@@ -129,6 +129,7 @@ def dump_new_dialogs(session, dpagent_base_url="http://0.0.0.0:4242"):
                     start = DBManager._parse_time(dialog_data['date_start'])
                     finish = DBManager._parse_time(dialog_data['date_finish'])
                     conv_id = dialog_data['dialog_id']
+
                     conv = Conversation(
                         id=conv_id,
                         # Fix the shit!:

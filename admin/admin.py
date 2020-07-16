@@ -111,6 +111,8 @@ class ConversationModelView(SafeModelView):
         FilterByVersionList(column=None, name='version')
     )
     list_template = 'admin/model/custom_list.html'
+    can_view_details = True
+    details_template = "admin/model/view_conversation.html"
     column_formatters = {
         'id': _alexa_id_formatter,
         'tg_id': lambda v, c, m, n: m.__getattribute__(n)[:5]
@@ -192,6 +194,7 @@ class ConversationModelView(SafeModelView):
                 raise
 
             flash('Failed to export: {}'.format(str(e)), 'error')
+
 
 # TODO: refactor filters and remove error that occurs when two different rating filters are applied
 class FilterByRegExp(BaseSQLAFilter):
