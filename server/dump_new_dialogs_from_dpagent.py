@@ -202,8 +202,8 @@ def dump_new_dialogs(session, dpagent_base_url="http://0.0.0.0:4242"):
                     logger.info(f'Successfully added a new conversation {conv_id} to local DB.')
         else:
             logger.warning("No dialogs in DP-Agent!")
-        print(results)
-
+        # print(results)
+    print("Fin.")
 
 
 
