@@ -92,6 +92,7 @@ class DPADumper():
 
 
 def dump_new_dialogs(session, dpagent_base_url="http://0.0.0.0:4242"):
+    # TODO make dumper to request only new dialogs and stop paging for old dialogs
     # get the latest dialog from local db
     # then iteratively collect dialog ids in the DPAgent dialog_list_ids API until meet existing
     # then iteratively grab each dialog to local db
@@ -154,7 +155,6 @@ def dump_new_dialogs(session, dpagent_base_url="http://0.0.0.0:4242"):
                         session.commit()
 
                         # ANNOTATIONS:
-                        # import ipdb; ipdb.set_trace()
                         try:
                             for each_anno_key, each_anno_dict in dialog_data['utterances'][utt_idx][
                                 'annotations'].items():
@@ -167,13 +167,11 @@ def dump_new_dialogs(session, dpagent_base_url="http://0.0.0.0:4242"):
                                 session.add(anno)
                             session.commit()
                         except Exception as e:
-                            print(e)
-                            import ipdb;
-                            ipdb.set_trace()
-                            print("Investigate")
+                            logger.warning(e)
+                            # import ipdb;
+                            # ipdb.set_trace()
+                            # print("Investigate")
 
-
-                        # TODO hypotheses
                         # HYPOTHESES:
                         if 'hypotheses' in dialog_data['utterances'][utt_idx]:
                             for each_hypo in dialog_data['utterances'][utt_idx]['hypotheses']:
@@ -195,17 +193,13 @@ def dump_new_dialogs(session, dpagent_base_url="http://0.0.0.0:4242"):
                                     session.add(hypo)
                                     session.commit()
                                 except Exception as e:
-                                    print(e)
-                                    import ipdb;
-                                    ipdb.set_trace()
-                                    print("Investigate")
-
-
-
-                    # commit the stuff
+                                    logger.warning(e)
+                                    # print(e)
+                                    # import ipdb;
+                                    # ipdb.set_trace()
+                                    # print("Investigate")
 
                     logger.info(f'Successfully added a new conversation {conv_id} to local DB.')
-            # find dialog ids that are missed
         else:
             logger.warning("No dialogs in DP-Agent!")
         print(results)
