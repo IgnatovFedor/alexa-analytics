@@ -111,7 +111,6 @@ def dump_new_dialogs(session, dpagent_base_url="http://0.0.0.0:4242"):
     dpad = DPADumper(dpa_base_url=dpagent_base_url)
 
     page_suffix = "?limit=5"
-    # import ipdb; ipdb.set_trace()
 
     while page_suffix is not None:
         # TODO make DP-Agent to return new dialogs first
@@ -158,7 +157,6 @@ def dump_new_dialogs(session, dpagent_base_url="http://0.0.0.0:4242"):
                         try:
                             for each_anno_key, each_anno_dict in dialog_data['utterances'][utt_idx][
                                 'annotations'].items():
-                                # anno, _ = Annotation.objects.get_or_create(
                                 anno = Annotation(
                                     parent_utterance_id=utt.id,
                                     annotation_type=each_anno_key,
