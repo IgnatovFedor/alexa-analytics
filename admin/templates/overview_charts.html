@@ -1,0 +1,44 @@
+{% extends 'admin/base.html' %}
+{% block head %}
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+{% endblock %}
+{% block body %}
+<div><a href="https://7052.lnsigo.mipt.ru/autoindex/#/dp_agent_alexa_data/dialogs_dumps_txt">Dialogs hourly dumps</a>
+</div>
+<div><a href="http://ec2-3-90-214-142.compute-1.amazonaws.com/admin/">Dialogs analysis tool</a></div>
+<div><a href="https://7052.lnsigo.mipt.ru/ab_tests/ab_tests_main.html">A/B tests</a></div>
+<div><a href="http://192.168.10.54:1337/link_to_plot">link_to plots</a></div>
+<br/>Plots:
+<ul>
+    <!--<li>Number of dialogs with ratings, hourly</li>-->
+    <!--<li>Avg dialog rating, hourly</li>-->
+    <!--<li>Skills Ratings by releases</li>-->
+    <!--<li>Skills Ratings by releases, EMA (0.5)</li>-->
+    <!--<li>Skills Ratings by releases, EMA (0.5), n_turns > 7</li>-->
+    <!--<li>Skills Ratings by releases, EMA (0.5), n_turns <= 7</li>-->
+    <!--<li>Ratings, hist, Last 24h</li>-->
+    <!--<li>Ratings by version</li>-->
+    <!--<li>Rating by n_turns for last 7 days</li>-->
+    <!--<li>Skill was selected, relative, Last 24h</li>-->
+    <!--<li>Skills Ratings, moving average over last 200 dialogs with number of turns > 7</li>-->
+    <!--<li>Skills Ratings, -_total, moving average over last 200 dialogs with number of turns > 7</li>-->
+    <!--<li>Skills Ratings, moving average over last 200 dialogs with number of turns <= 7</li>-->
+    <!--<li>Skills Ratings, -_total, moving average over last 200 dialogs with number of turns <= 7</li>-->
+    <li>Dialog time(sec), Daily</li>
+    <li>Avg number of utterances, Daily</li>
+    <li>Number of utterances, distribution, Daily</li>
+    <!--<li>Dialog finished reason, with rating, Last 24h</li>-->
+    <!--<li>Dialog finished reason, all, Last 24h</li>-->
+    <!--<li>Last skill in dialog, with rating, Last 24h</li>-->
+    <!--<li>Last skill in dialog, "Alexa, stop", "Alexa, exit", "Alexa, quit", with rating, Last 24h</li>-->
+    <li>Last skill in dialog, all, Last 24h</li>
+    <li>Dialogs with returned users, daily</li>
+</ul>
+<!--<div>COLOQUE SEUS GRÁFICOS AQUI!</div>-->
+<div>{{dialog_time_figure_div|safe }}</div>
+
+<div>{{shares_n_utt_div|safe }}</div>
+
+<div>{{last_skill_fig_div|safe }}</div>
+{% endblock %}
+</html>

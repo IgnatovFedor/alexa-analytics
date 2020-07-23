@@ -298,6 +298,8 @@ class UtteranceModelView(SafeModelView):
 
             flash('Failed to export: {}'.format(str(e)), 'error')
 
+from .overview_charts_view import OverviewChartsView
+
 
 def start_admin(session: Session, user: str, password: str, port: int, amazon_container: str) -> None:
     @app.route('/conversation/<id>')
@@ -365,6 +367,8 @@ def start_admin(session: Session, user: str, password: str, port: int, amazon_co
     def index():
         return '<a href="/admin/">Click me to get to Admin!</a>'
 
+
+
     # Without session.expire_all flask-admin is showing old values of rows if they were updated after server start
     @app.teardown_request
     def teardown_request(*args, **kwargs):
@@ -377,5 +381,7 @@ def start_admin(session: Session, user: str, password: str, port: int, amazon_co
     admin = Admin(app, name='microblog', template_mode='bootstrap3')
     admin.add_view(ConversationModelView(Conversation, session))
     admin.add_view(UtteranceModelView(Utterance, session))
+
+    admin.add_view(OverviewChartsView(name='Analytical Charts', endpoint='overview_charts_views'))
 
     app.run(host='0.0.0.0', port=port)
