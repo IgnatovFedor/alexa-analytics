@@ -60,7 +60,8 @@ class DPADumper():
                 "offset": offset,
                 "limit": limit,
                 # for dumping finished dialogs only:
-                "_active": 0
+                # "_active": 0
+                "_active": 1
             }
 
             url_suffix = urllib.parse.urlencode(params)
@@ -110,7 +111,7 @@ def dump_new_dialogs(session, dpagent_base_url="http://0.0.0.0:4242"):
     # request dp_agent api for list of dialogs
     dpad = DPADumper(dpa_base_url=dpagent_base_url)
 
-    page_suffix = "?limit=5"
+    page_suffix = "?limit=5&_active=1"
 
     while page_suffix is not None:
         # TODO make DP-Agent to return new dialogs first
@@ -141,6 +142,14 @@ def dump_new_dialogs(session, dpagent_base_url="http://0.0.0.0:4242"):
                         length=len(dialog_data['utterances']),
                         raw_utterances=dialog_data['utterances']
                     )
+                    # ##########################
+                    # find ratings
+                    # get the last rating:
+                    if "attributes" in dialog_data:
+                        if 'ratings' in dialog_data['attributes']:
+                            for each_rat_dict in dialog_data['attributes']['ratings']:
+                                conv.rating = each_rat_dict['rating']
+                    # ##########################
                     session.add(conv)
                     session.commit()
 
