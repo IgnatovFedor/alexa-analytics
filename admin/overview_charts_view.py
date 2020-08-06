@@ -33,21 +33,27 @@ class OverviewChartsView(BaseView):
             time = (dialog.date_finish - dialog.date_start).seconds
             n_utt = len(list(dialog.utterances))
             dialog_durations += [[date, time, n_utt]]
-            # for utt in dialog.utterances:
-            #     if hasattr(utt, 'active_skill'):
-            #         skills_ratings += [[date, utt.active_skill, rating, conv_id, dialog.version]]
-        # skills_ratings = pd.DataFrame(skills_ratings,
-        #                               columns=['date', 'active_skill', 'rating', 'conv_id',
-        #                                        'version'])
-        # skills_ratings['date'] = pd.to_datetime(skills_ratings['date'], utc=True)
-        #
-        # n_turns = skills_ratings['conv_id'].value_counts().to_dict()
-        # skills_ratings['n_turns'] = skills_ratings['conv_id'].apply(lambda x: n_turns[x])
 
+            if dialog.rating:
+                for utt in dialog.utterances:
+                    # if hasattr(utt, 'active_skill'):
+                    if utt.active_skill:
+                #         skills_ratings += [[date, utt.active_skill, rating, conv_id, dialog.version]]
+                        skills_ratings += [[date, utt.active_skill, rating, conv_id, None]]
+        skills_ratings = pd.DataFrame(skills_ratings,
+                                      columns=['date', 'active_skill', 'rating', 'conv_id',
+                                               'version'])
+        skills_ratings['date'] = pd.to_datetime(skills_ratings['date'], utc=True)
+        #
+        n_turns = skills_ratings['conv_id'].value_counts().to_dict()
+        skills_ratings['n_turns'] = skills_ratings['conv_id'].apply(lambda x: n_turns[x])
+        # print("skills_ratings")
+        # print(skills_ratings)
         # skills_ratings = skills_ratings[skills_ratings['n_turns'] > 1]
 
         dialog_durations = pd.DataFrame(dialog_durations, columns=['date', 'time', 'n_utt'])
         dialog_durations['date'] = pd.to_datetime(dialog_durations['date'], utc=True)
+
         return dialog_durations, skills_ratings
 
     def prepare_dialog_finished_df(self, dialogs):
@@ -164,7 +170,15 @@ class OverviewChartsView(BaseView):
     #     fig_daily_counts_relative.update_layout(hovermode='x')
     #     return fig_daily_counts_relative
 
-    def make_skills_durations_plot(self, dialog_durations_df):
+    def plot_skills_durations(self, dialog_durations_df):
+        """
+        - Dialog time(sec), Daily
+        - Avg number of utterances, Daily
+        - Number of utterances, distribution, Daily
+        
+        :param dialog_durations_df:
+        :return:
+        """
         from plotly.subplots import make_subplots
         import plotly.graph_objects as go
 
@@ -247,7 +261,13 @@ class OverviewChartsView(BaseView):
         # return render(request, 'dialogs/skills_sentiment_stacked.html', context_dict)
         return dialog_time_fig, shares_n_utt_fig
 
-    def make_last_skill_in_dialog_plot(self, dialog_finished_df):
+    def plot_last_skill_in_dialog(self, dialog_finished_df):
+        """
+        Last skill in dialog, all, Last 24h
+
+        :param dialog_finished_df:
+        :return:
+        """
         from plotly.subplots import make_subplots
         # import plotly.graph_objects as go
         import datetime as dt
@@ -317,37 +337,181 @@ class OverviewChartsView(BaseView):
         # fig_dialog_finished_skill_all_day.show()
         return fig_dialog_finished_skill_all_day
 
+
     @expose('/')
     def index(self):
+        """
+        Main page for analytical overview
+        :return:
+        """
         # retrieve all dialogs
         dialogs = self.session.query(Conversation).order_by(Conversation.date_finish.desc())
         # print(dialogs)
 
-        dialog_durations_df, skills_ratings = self.prepare_data_for_plotting(dialogs)
+        dialog_durations_df, skills_ratings_df = self.prepare_data_for_plotting(dialogs)
 
-        # print(dialog_durations_df)
-        # print(dialog_finished_df)
+        print("skills_ratings_df")
+        print(skills_ratings_df)
+        print("dialog_durations_df")
+        print(dialog_durations_df)
 
+        dialog_finished_df = self.prepare_dialog_finished_df(dialogs)
+        print("dialog_finished_df")
+        print(dialog_finished_df)
         # retrieve data for skill frequency chart
         # prepare plot for it
+        # TODO prepare data for number_of_dialogs_with_ratings_hrly wit dialogs start time and ratings
+        df = self.prepare_data_for_ratings_plots(dialogs)
+        hrly_dialogs_ratings_fig = self.plot_number_of_dialogs_with_ratings_hrly(df)
+
 
         # retrieve data for Dialog time(sec), Daily chart
         # prepare plot of it
-        dialog_time_fig, shares_n_utt_fig = self.make_skills_durations_plot(dialog_durations_df)
+        dialog_time_fig, shares_n_utt_fig = self.plot_skills_durations(dialog_durations_df)
         dialog_time_fig_div = plot(dialog_time_fig, output_type='div', include_plotlyjs=False)
         shares_n_utt_div = plot(shares_n_utt_fig, output_type='div', include_plotlyjs=False)
+
+        hrly_dialogs_ratings_fig_div = plot(hrly_dialogs_ratings_fig, output_type='div', include_plotlyjs=False)
+
         context_dict = {
             # "plot_title": "Duration analysis",
             "dialog_time_figure_div": dialog_time_fig_div,
-            "shares_n_utt_div": shares_n_utt_div
+            "shares_n_utt_div": shares_n_utt_div,
+            "hrly_dialogs_ratings_fig_div": hrly_dialogs_ratings_fig_div
         }
 
         ########################
-        # last skill fig
-        dialog_finished_df = self.prepare_dialog_finished_df(dialogs)
-        last_skill_fig = self.make_last_skill_in_dialog_plot(dialog_finished_df)
+        # Last skill in dialog, all, Last 24h
+        last_skill_fig = self.plot_last_skill_in_dialog(dialog_finished_df)
         last_skill_fig_div = plot(last_skill_fig, output_type='div', include_plotlyjs=False)
         # return render_template('overview_charts.html', name=name)
         context_dict["last_skill_fig_div"] = last_skill_fig_div
 
+        # ######################################
+        # Ratings, hist, Last 24h
+        rating_hists_fig = self.plot_ratings_hists(skills_ratings_df)
+        rating_hists_fig_div = plot(rating_hists_fig, output_type='div', include_plotlyjs=False)
+        context_dict["rating_hists_fig_div"] = rating_hists_fig_div
         return self.render('overview_charts.html', **context_dict)
+
+    def prepare_data_for_ratings_plots(self, dialogs):
+        """
+        Prepares dataframe for some plots
+        :param dialogs:
+        :return:
+        """
+        import pandas as pd
+        data = []
+        for each_dialog in dialogs:
+            data.append({
+                'id': each_dialog.id,
+                'rating': each_dialog.rating,
+                'start_time': each_dialog.date_start
+            })
+        df = pd.DataFrame(data)
+        return df
+
+    def plot_number_of_dialogs_with_ratings_hrly(self, data_df):
+        """
+        Number of dialogs with ratings, hourly
+
+        data_df DataFrame with ratings, start_time and id fields"""
+        import datetime as dt
+        from plotly.subplots import make_subplots
+        import plotly.graph_objects as go
+
+        fig = make_subplots(rows=2, cols=1, subplot_titles=(
+        'Number of dialogs with ratings, hourly', 'Avg dialog rating, hourly'))
+
+        now = dt.datetime.now()
+        # now = dt.datetime.now(tz=tz.gettz('UTC'))
+        end = dt.datetime(year=now.year, month=now.month, day=now.day, hour=now.hour)
+                       # tzinfo=now.tzinfo)
+        start = end - dt.timedelta(days=14)
+
+        x = []
+        counts = []
+        ratings = []
+
+        for date in pd.date_range(start=start, end=end, freq='H'):
+            x += [date]
+            hourly_dialogs = data_df[(data_df['start_time'] < date) & (
+                    data_df['start_time'] > date - date .freq)]
+            counts += [len(hourly_dialogs)]
+            ratings += [0 if len(hourly_dialogs) == 0 else hourly_dialogs['rating'].mean()]
+
+        fig.add_trace(go.Scatter(x=x, y=counts, fill='tozeroy', name='count', ), row=1, col=1)
+        fig.add_trace(go.Scatter(x=x, y=ratings, fill='tozeroy', name='rating', ), row=2, col=1)
+
+        end = dt.datetime(year=now.year, month=now.month, day=now.day, hour=8)
+                          # tzinfo=now.tzinfo)
+        start = end - dt.timedelta(days=14)
+        x = []
+        ratings = []
+        for date in pd.date_range(start=start, end=end, freq='D'):
+            x += [date]
+            hourly_dialogs = data_df[(data_df['start_time'] <= date) & (
+                    data_df['start_time'] > date - date.freq)]
+            ratings += [0 if len(hourly_dialogs) == 0 else hourly_dialogs['rating'].mean()]
+        fig.add_trace(go.Scatter(x=x, y=ratings, name='rating, 24h'), row=2, col=1)
+
+        fig.update_layout(height=600, width=1200, showlegend=False)
+
+        # first plot start, end
+        end = dt.datetime(year=now.year, month=now.month, day=now.day, hour=now.hour)
+                       # tzinfo=now.tzinfo)
+        start = end - dt.timedelta(days=14)
+        fig['layout']['xaxis2']['range'] = [start, end]
+
+        fig['layout']['yaxis2']['range'] = [0, 5.5]
+        fig.update_layout(hovermode='x')
+        # fig.show()
+        return fig
+
+    def plot_ratings_hists(self, skills_ratings):
+        """
+        Ratings, hist, Last 24h
+        :param skills_ratings:
+        :return:
+        """
+        from plotly.subplots import make_subplots
+        import datetime as dt
+
+        fig_daily_hist_ratings = make_subplots(rows=1, cols=1,
+                                               subplot_titles=('Ratings, hist, Last 24h',))
+
+        now = dt.datetime.now(tz=tz.gettz('UTC'))
+        # now = dt.datetime.now()
+        end = now
+        start = end - dt.timedelta(days=14)
+
+        x = dict()
+        skill_r = dict()
+        skill_c = dict()
+        ratings_values = list(range(6))
+        for n in ratings_values:
+            skill_r[n] = []
+            skill_c[n] = []
+            x[n] = []
+        for date in pd.date_range(start=start, end=end, freq='D'):
+            daily_ratings = skills_ratings[
+                (skills_ratings['date'] < date) & (skills_ratings['date'] >= date - date.freq * 1)]
+            d = daily_ratings.groupby('conv_id').first()
+            d['rating_round'] = d['rating'].apply(round)
+            rating_counts = d.groupby('rating_round').count()['rating']
+            for r, v in rating_counts.items():
+                skill_r[r] += [v / len(d)]
+                skill_c[r] += [v]
+                x[r] += [date]
+
+        # for n in skill_names:
+        #    fig_daily_hist_ratings.add_trace(go.Scatter(x=x[n], y=skill_r[n], name=n, line={'dash': 'dot'}, marker={'size':8}), row=1, col=1)
+        for r in ratings_values:
+            fig_daily_hist_ratings.add_bar(name=r, x=x[r], y=skill_r[r], customdata=skill_c[r],
+                                           hovertemplate='%{y:.2f}: count: %{customdata}')
+
+        fig_daily_hist_ratings.update_layout(height=500, width=1300, showlegend=True)
+        fig_daily_hist_ratings['layout']['yaxis1']['range'] = [0, 1]
+        fig_daily_hist_ratings.update_layout(hovermode='x', barmode='stack')
+        # fig_daily_hist_ratings.show()
+        return fig_daily_hist_ratings
