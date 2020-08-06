@@ -11,6 +11,7 @@ from db.models.utterance_hypothesis import UtteranceHypothesis
 from db.db import DBManager
 import logging
 from copy import copy
+import datetime as dt
 # from server.s3 import S3Manager
 # from server.server import start_polling
 logger = logging.getLogger(__name__)
@@ -130,9 +131,10 @@ def dump_new_dialogs(session, dpagent_base_url="http://0.0.0.0:4242"):
                     dialog_data = dpad.request_api_for_dialog(each_dialog_id)
                     start = DBManager._parse_time(dialog_data['date_start'])
                     finish = DBManager._parse_time(dialog_data['date_finish'])
-                    # TODO check that finish time is old enough in case if dialog is active
-                    # TODO skip fresh unfinished dialogs
 
+                    if dialog_data["_active"] and finish > dt.datetime.now()-dt.timedelta(days=1):
+                        logger.info(f"skipping actve and fresh dialog: {dialog_data['dialog_id']}")
+                        continue
                     conv_id = dialog_data['dialog_id']
 
                     conv = Conversation(
