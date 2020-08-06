@@ -61,7 +61,6 @@ class DPADumper():
                 "limit": limit,
                 # for dumping finished dialogs only:
                 # "_active": 0
-                "_active": 1
             }
 
             url_suffix = urllib.parse.urlencode(params)
@@ -111,7 +110,9 @@ def dump_new_dialogs(session, dpagent_base_url="http://0.0.0.0:4242"):
     # request dp_agent api for list of dialogs
     dpad = DPADumper(dpa_base_url=dpagent_base_url)
 
-    page_suffix = "?limit=5&_active=1"
+    page_suffix = "?limit=5"
+    # page_suffix = "?limit=5&_active=0"
+    # page_suffix = "?limit=5&_active=1"
 
     while page_suffix is not None:
         # TODO make DP-Agent to return new dialogs first
@@ -129,6 +130,9 @@ def dump_new_dialogs(session, dpagent_base_url="http://0.0.0.0:4242"):
                     dialog_data = dpad.request_api_for_dialog(each_dialog_id)
                     start = DBManager._parse_time(dialog_data['date_start'])
                     finish = DBManager._parse_time(dialog_data['date_finish'])
+                    # TODO check that finish time is old enough in case if dialog is active
+                    # TODO skip fresh unfinished dialogs
+
                     conv_id = dialog_data['dialog_id']
 
                     conv = Conversation(
