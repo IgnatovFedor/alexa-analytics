@@ -10,8 +10,8 @@
 <div><a href="http://192.168.10.54:1337/link_to_plot">link_to plots</a></div>
 <br/>Plots:
 <ul>
-    <!--<li>Number of dialogs with ratings, hourly</li>-->
-    <!--<li>Avg dialog rating, hourly</li>-->
+    <li>Number of dialogs with ratings, hourly</li>
+    <li>Avg dialog rating, hourly</li>
     <!--<li>Skills Ratings by releases</li>-->
     <!--<li>Skills Ratings by releases, EMA (0.5)</li>-->
     <!--<li>Skills Ratings by releases, EMA (0.5), n_turns > 7</li>-->
@@ -35,17 +35,20 @@
     <li>Dialogs with returned users, daily</li>
 </ul>
 <!--<div>COLOQUE SEUS GRÁFICOS AQUI!</div>-->
+
+<div>{{hrly_dialogs_ratings_fig_div|safe }}</div>
+
 <div>{{dialog_time_figure_div|safe }}</div>
 
 <div>{{shares_n_utt_div|safe }}</div>
 
 <div>{{last_skill_fig_div|safe }}</div>
 
-
-<div>{{hrly_dialogs_ratings_fig_div|safe }}</div>
-
 <div>{{rating_hists_fig_div|safe }}</div>
 
+<div>{{rating_by_n_turns_fig_div|safe}}</div>
+
+<div>{{daily_counts_relative_fig_div|safe}}</div>
 
 {% endblock %}
 </html>

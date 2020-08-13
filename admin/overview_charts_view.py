@@ -392,6 +392,20 @@ class OverviewChartsView(BaseView):
         rating_hists_fig = self.plot_ratings_hists(skills_ratings_df)
         rating_hists_fig_div = plot(rating_hists_fig, output_type='div', include_plotlyjs=False)
         context_dict["rating_hists_fig_div"] = rating_hists_fig_div
+
+        # ######################################
+        # Rating by n_turns for last 7 days
+        rating_by_n_turns_fig = self.plot_rating_by_turns(skills_ratings_df)
+        rating_by_n_turns_fig_div = plot(rating_by_n_turns_fig, output_type='div', include_plotlyjs=False)
+        context_dict["rating_by_n_turns_fig_div"] = rating_by_n_turns_fig_div
+
+        skill_names = list(set(skills_ratings_df["active_skill"].values))
+        # ######################################
+        # Skill was selected, relative, Last 24h
+        daily_counts_relative_fig = self.plot_skill_was_selected_relative(skills_ratings_df, skill_names)
+        daily_counts_relative_fig_div = plot(daily_counts_relative_fig, output_type='div', include_plotlyjs=False)
+        context_dict["daily_counts_relative_fig_div"] = daily_counts_relative_fig_div
+
         return self.render('overview_charts.html', **context_dict)
 
     def prepare_data_for_ratings_plots(self, dialogs):
@@ -515,3 +529,119 @@ class OverviewChartsView(BaseView):
         fig_daily_hist_ratings.update_layout(hovermode='x', barmode='stack')
         # fig_daily_hist_ratings.show()
         return fig_daily_hist_ratings
+
+    def plot_rating_by_turns(self, skills_ratings):
+        """
+        Rating by n_turns for last 7 days
+
+        :param skills_ratings:
+        :return:
+        """
+        from plotly.subplots import make_subplots
+        import plotly.graph_objects as go
+        import datetime as dt
+        max_n = 30
+        x = []
+        y = []
+        z = []
+        n_days = 14
+        now = dt.datetime.now(tz=tz.gettz('UTC'))
+        start_date = (now - dt.timedelta(days=n_days))
+        start_date = pd.Timestamp(start_date)
+        daily_ratings = skills_ratings[skills_ratings['date'] >= start_date]
+        # import ipdb; ipdb.set_trace()
+        # print("daily_ratings")
+        # print(daily_ratings)
+
+        count = daily_ratings.groupby(['n_turns', 'rating']).count()['date']
+        # print(count)
+        for i in range(1, max_n):
+            try:
+                for j in (count.loc[i].keys()):
+                    #        if count[i][j] // i > 0:
+                    x.append(i)
+                    y.append(j)
+                    z.append(count[i][j] // i)
+            except Exception as e:
+                # skip because some keys may absent
+                print(e)
+                pass
+        rating_by_n_turns_fig = go.Figure(data=[go.Scatter(
+            x=x,
+            y=y,
+            mode='markers',
+            marker=dict(
+                # TODO fix bug with sizes of markers for the case when we in lack of data
+                size=[j / 1.5 for j in z],
+            ),
+            customdata=z,
+            hovertemplate='%{y:.2f}: count: %{customdata}',
+            name='Rating by n_utt'
+        )])
+        rating_by_n_turns_fig.update_layout(title='Rating by n_turns for last {:d} days'.format(n_days),
+                                            showlegend=False, height=500, width=1300)
+        rating_by_n_turns_fig['layout']['yaxis']['range'] = [0.1, 5.9]
+        rating_by_n_turns_fig['layout']['xaxis']['title'] = {'text': 'n_turns'}
+        rating_by_n_turns_fig['layout']['yaxis']['title'] = {'text': 'rating'}
+        # rating_by_n_turns_fig.show()
+        return rating_by_n_turns_fig
+
+    def plot_skill_was_selected_relative(self, skills_ratings, skill_names):
+        """
+        Skill was selected, relative, Last 24h
+
+        :param skills_ratings:
+        :param skill_names:
+        :return:
+        """
+        from plotly.subplots import make_subplots
+        import plotly.graph_objects as go
+        import datetime as dt
+
+        fig_daily_counts_relative = make_subplots(rows=1, cols=1,
+                                                  subplot_titles=('Skill was selected, relative, Last 24h',))
+
+        now = dt.datetime.now(tz=tz.gettz('UTC'))
+        end = now
+        start = end - dt.timedelta(days=14)
+
+        x = dict()
+        skill_c = dict()
+        skill_names = set(skill_names)
+        skill_z = dict()
+        for n in skill_names:
+            skill_c[n] = []
+            x[n] = []
+            skill_z[n] = []
+
+        for dt in pd.date_range(start=start, end=end, freq='D'):
+            daily_ratings = skills_ratings[(skills_ratings['date'] < dt) & (skills_ratings['date'] >= dt - dt.freq * 1)]
+            for sn, c in daily_ratings.groupby('active_skill')['rating'].count().items():
+                if sn in skill_names:
+                    skill_c[sn] += [c / len(daily_ratings)]
+                    x[sn] += [dt]
+                    skill_z[sn] += [c]
+
+        min_x, max_x = 1e10, 0
+        for n in sorted(list(skill_names)):
+            if len(skill_c[n]) > 0:
+                fig_daily_counts_relative.add_trace(
+                    go.Scatter(x=x[n], y=skill_c[n], customdata=skill_z[n], name=n, line={'dash': 'dot'},
+                               marker={'size': 8},
+                               hovertemplate='%{y:.3f}: count %{customdata}'),
+                    row=1, col=1)
+                min_x = min(min_x, min(skill_c[n]))
+                max_x = max(max_x, max(skill_c[n]))
+
+        # for d, r in releases.values:
+        #     if d > start:
+        #         fig_daily_counts_relative.add_shape(
+        #             dict(type="line", x0=d, y0=min_x, x1=d, y1=max_x, line=dict(color="RoyalBlue", width=1)), row=1,
+        #             col=1)
+        #         fig_daily_counts_relative.add_annotation(x=d, y=max_x, text=r, textangle=-90, showarrow=True,
+        #                                                  font=dict(color="black", size=10), opacity=0.7, row=1, col=1)
+
+        fig_daily_counts_relative.update_layout(height=500, width=1300, showlegend=True)
+        fig_daily_counts_relative.update_layout(hovermode='x')
+        # fig_daily_counts_relative.show()
+        return fig_daily_counts_relative
