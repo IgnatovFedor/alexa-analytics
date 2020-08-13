@@ -132,7 +132,7 @@ def dump_new_dialogs(session, dpagent_base_url="http://0.0.0.0:4242"):
                     start = DBManager._parse_time(dialog_data['date_start'])
                     finish = DBManager._parse_time(dialog_data['date_finish'])
 
-                    if dialog_data["_active"] and finish > dt.datetime.now()-dt.timedelta(days=1):
+                    if dialog_data["_active"] and finish > dt.datetime.now()-dt.timedelta(minutes=10):
                         logger.info(f"skipping actve and fresh dialog: {dialog_data['dialog_id']}")
                         continue
                     conv_id = dialog_data['dialog_id']
