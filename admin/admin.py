@@ -32,7 +32,8 @@ class AuthException(HTTPException):
 
 
 class SafeModelView(ModelView):
-    can_delete = False
+    # can_delete = False
+    can_delete = True
     can_create = False
     can_edit = False
 
