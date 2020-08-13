@@ -406,6 +406,15 @@ class OverviewChartsView(BaseView):
         daily_counts_relative_fig_div = plot(daily_counts_relative_fig, output_type='div', include_plotlyjs=False)
         context_dict["daily_counts_relative_fig_div"] = daily_counts_relative_fig_div
 
+        #
+        moving_avg_fig = self.plot_skills_ratings_ma_dialogs_with_gt_7_turns(skills_ratings_df, skill_names)
+        moving_avg_fig_div = plot(moving_avg_fig, output_type='div', include_plotlyjs=False)
+        context_dict["moving_avg_fig_div"] = moving_avg_fig_div
+
+        skill_ratings_total_ma_n_turns_gt_7_fig = self.plot_skill_ratings_total_ma_n_turns_gt_7(skills_ratings_df)
+        skill_ratings_total_ma_n_turns_gt_7_fig_div = plot(skill_ratings_total_ma_n_turns_gt_7_fig, output_type='div', include_plotlyjs=False)
+        context_dict["skill_ratings_total_ma_n_turns_gt_7_fig_div"] = skill_ratings_total_ma_n_turns_gt_7_fig_div
+
         return self.render('overview_charts.html', **context_dict)
 
     def prepare_data_for_ratings_plots(self, dialogs):
@@ -645,3 +654,197 @@ class OverviewChartsView(BaseView):
         fig_daily_counts_relative.update_layout(hovermode='x')
         # fig_daily_counts_relative.show()
         return fig_daily_counts_relative
+
+    def plot_skills_ratings_ma_dialogs_with_gt_7_turns(self, skills_ratings, skill_names):
+        """
+        Skills Ratings, moving average over last 200 dialogs with number of turns > 7
+
+        :param skills_ratings:
+        :param skill_names:
+        :return:
+        """
+        from tqdm import tqdm as tqdm
+        from plotly.subplots import make_subplots
+        import plotly.graph_objects as go
+        import datetime as dt
+
+        avg_n_dialogs = 200
+        n_turns = 7
+
+        fig_moving_avg = make_subplots(rows=1, cols=1, subplot_titles=(
+        f'Skills Ratings, moving average over last {avg_n_dialogs} dialogs with number of turns > {n_turns}',))
+
+        x = dict()
+        skill_c = dict()
+        skill_r = dict()
+        skill_names = set(skill_names)
+        for n in skill_names:
+            skill_c[n] = []
+            skill_r[n] = []
+            x[n] = []
+        skill_c['_total'] = []
+        skill_r['_total'] = []
+        x['_total'] = []
+
+        now = dt.datetime.now(tz=tz.gettz('UTC'))
+        end = now
+        start = end - dt.timedelta(days=35)
+
+        skills_ratings_by_range = skills_ratings[(skills_ratings['date'] <= end) & (skills_ratings['date'] >= start)][
+                                  ::-1]
+        skills_ratings_by_range = skills_ratings_by_range[skills_ratings_by_range['n_turns'] > n_turns]
+
+        min_r = 5
+        max_r = 0
+
+        sr_gb = skills_ratings_by_range.groupby('conv_id', sort=False)
+        d = sr_gb.first()
+        dates_by_id = d['date'].to_dict()
+        d['cnt'] = sr_gb['rating'].count()
+        d['r*cnt'] = d['cnt'] * d['rating']
+        s_count = d['cnt'].rolling(avg_n_dialogs).sum()
+        moving_avg = d['r*cnt'].rolling(avg_n_dialogs).sum() / s_count
+        # moving_avg = d['rating'].rolling(avg_n_dialogs).mean()
+
+        for (i, v), (_, c) in zip(moving_avg.items(), s_count.items()):
+            date = dates_by_id[i]
+            if not pd.isna(v):
+                x['_total'] += [pd.to_datetime(date, utc=True)]
+                skill_r['_total'] += [v]
+                skill_c['_total'] += [c]
+
+        for sn in tqdm(list(skill_names)):
+            sr_gb = skills_ratings_by_range[skills_ratings_by_range['active_skill'] == sn].groupby('conv_id',
+                                                                                                   sort=False)
+            d = sr_gb.first()
+            dates_by_id = d['date'].to_dict()
+            d['cnt'] = sr_gb['rating'].count()
+            d['r*cnt'] = d['cnt'] * d['rating']
+            s_count = d['cnt'].rolling(avg_n_dialogs).sum()
+            moving_avg = d['r*cnt'].rolling(avg_n_dialogs).sum() / s_count
+            for (i, v), (_, c) in zip(moving_avg.items(), s_count.items()):
+                date = dates_by_id[i]
+                if not pd.isna(v):
+                    x[sn] += [pd.to_datetime(date, utc=True)]
+                    skill_r[sn] += [v]
+                    skill_c[sn] += [c]
+
+        for n in sorted(list(skill_names) + ['_total']):
+            if len(skill_r[n]) == 0:
+                continue
+            fig_moving_avg.add_trace(go.Scatter(x=x[n], y=skill_r[n], name=n, line={'dash': 'dot'}, marker={'size': 8},
+                                                customdata=skill_c[n],
+                                                hovertemplate='%{y:.2f}: selected: %{customdata}', ), row=1, col=1)
+            min_r = min(min_r, min(skill_r[n]))
+            max_r = max(max_r, max(skill_r[n]))
+
+        # for d, r in releases.values:
+        #     if d > start:
+        #         fig_moving_avg.add_shape(
+        #             dict(type="line", x0=d, y0=min_r, x1=d, y1=max_r, line=dict(color="RoyalBlue", width=1)), row=1,
+        #             col=1)
+        #         fig_moving_avg.add_annotation(x=d, y=max_r, text=r, textangle=-90, showarrow=True,
+        #                                       font=dict(color="black", size=10), opacity=0.7, row=1, col=1)
+
+        fig_moving_avg.update_layout(height=500, width=1300, showlegend=True)
+        fig_moving_avg.update_layout(hovermode='x')
+        fig_moving_avg['layout']['yaxis1']['range'] = [min_r, max_r]
+        # fig_moving_avg.show()
+        return fig_moving_avg
+
+    def plot_skill_ratings_total_ma_n_turns_gt_7(self, skills_ratings):
+        """
+        Skills Ratings, -_total, moving average over last 200 dialogs with number of turns > 7
+
+        :param skills_ratings:
+        :return:
+        """
+        from tqdm import tqdm as tqdm
+        from plotly.subplots import make_subplots
+        import plotly.graph_objects as go
+        import datetime as dt
+
+        avg_n_dialogs = 200
+        n_turns = 7
+
+        fig_moving_avg_d_total = make_subplots(rows=1, cols=1, subplot_titles=(
+        f'Skills Ratings, -_total, moving average over last {avg_n_dialogs} dialogs with number of turns > {n_turns}',))
+
+        x = dict()
+        skill_c = dict()
+        skill_r = dict()
+        skill_names = set(skills_ratings['active_skill'].unique()) - set(['no_skill_name'])
+        for n in skill_names:
+            skill_c[n] = []
+            skill_r[n] = []
+            x[n] = []
+        skill_c['_total'] = []
+        skill_r['_total'] = []
+        x['_total'] = []
+
+        now = dt.datetime.now(tz=tz.gettz('UTC'))
+        end = now
+        start = end - dt.timedelta(days=35)
+
+        skills_ratings_by_range = skills_ratings[(skills_ratings['date'] <= end) & (skills_ratings['date'] >= start)][
+                                  ::-1]
+        skills_ratings_by_range = skills_ratings_by_range[skills_ratings_by_range['n_turns'] > n_turns]
+
+        min_r = 5
+        max_r = 0
+
+        sr_gb = skills_ratings_by_range.groupby('conv_id', sort=False)
+        d = sr_gb.first()
+        dates_by_id = d['date'].to_dict()
+        d['cnt'] = sr_gb['rating'].count()
+        d['r*cnt'] = d['cnt'] * d['rating']
+        s_count = d['cnt'].rolling(avg_n_dialogs).sum()
+        moving_avg = d['r*cnt'].rolling(avg_n_dialogs).sum() / s_count
+        total = dict()
+
+        for (i, v), (_, c) in zip(moving_avg.items(), s_count.items()):
+            date = dates_by_id[i]
+            if not pd.isna(v):
+                x['_total'] += [pd.to_datetime(date, utc=True)]
+                skill_r['_total'] += [v]
+                skill_c['_total'] += [c]
+                total[pd.to_datetime(date, utc=True)] = v
+
+        for sn in tqdm(list(skill_names)):
+            sr_gb = skills_ratings_by_range[skills_ratings_by_range['active_skill'] == sn].groupby('conv_id',
+                                                                                                   sort=False)
+            d = sr_gb.first()
+            dates_by_id = d['date'].to_dict()
+            d['cnt'] = sr_gb['rating'].count()
+            d['r*cnt'] = d['cnt'] * d['rating']
+            s_count = d['cnt'].rolling(avg_n_dialogs).sum()
+            moving_avg = d['r*cnt'].rolling(avg_n_dialogs).sum() / s_count
+            for (i, v), (_, c) in zip(moving_avg.items(), s_count.items()):
+                date = dates_by_id[i]
+                if not pd.isna(v):
+                    x[sn] += [pd.to_datetime(date, utc=True)]
+                    skill_r[sn] += [v - total[pd.to_datetime(date, utc=True)]]
+                    skill_c[sn] += [c]
+
+        for n in sorted(list(skill_names)):
+            if len(skill_r[n]) == 0:
+                continue
+            fig_moving_avg_d_total.add_trace(
+                go.Scatter(x=x[n], y=skill_r[n], name=n, line={'dash': 'dot'}, marker={'size': 8},
+                           customdata=skill_c[n], hovertemplate='%{y:.2f}: selected: %{customdata}', ), row=1, col=1)
+            min_r = min(min_r, min(skill_r[n]))
+            max_r = max(max_r, max(skill_r[n]))
+
+        # for d, r in releases.values:
+        #     if d > start:
+        #         fig_moving_avg_d_total.add_shape(
+        #             dict(type="line", x0=d, y0=min_r, x1=d, y1=max_r, line=dict(color="RoyalBlue", width=1)), row=1,
+        #             col=1)
+        #         fig_moving_avg_d_total.add_annotation(x=d, y=max_r, text=r, textangle=-90, showarrow=True,
+        #                                               font=dict(color="black", size=10), opacity=0.7, row=1, col=1)
+
+        fig_moving_avg_d_total.update_layout(height=500, width=1300, showlegend=True)
+        fig_moving_avg_d_total.update_layout(hovermode='x')
+        fig_moving_avg_d_total['layout']['yaxis1']['range'] = [min_r, max_r]
+        # fig_moving_avg_d_total.show()
+        return fig_moving_avg_d_total
