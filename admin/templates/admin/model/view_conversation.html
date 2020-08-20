@@ -76,9 +76,16 @@
                         {% for hypo in utt.hypotheses %}
                             <tr>
                                 <td>{{hypo.skill_name}}</td>
-                                <td>{{hypo.confidence}}</td>
+                                <td>{{"%.2f"|format(hypo.confidence)}}</td>
                                 <td><b>{{hypo.text}}</b></td>
-                                <td>{{hypo.other_attrs}}</td>
+                                <td>
+                                    <details>
+                                        <summary>
+                                            Expand...
+                                        </summary>
+                                    {{hypo.other_attrs}}
+                                    </details>
+                                </td>
                             </tr>
                         {% endfor %}
                     </table>

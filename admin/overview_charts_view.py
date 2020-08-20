@@ -1016,7 +1016,7 @@ class OverviewChartsView(BaseView):
 
         now = dt.datetime.now(tz=tz.gettz('UTC'))
         end = now
-        start = end - dt.timedelta(days=14)
+        start = end - dt.timedelta(days=31)
 
         x = dict()
         value_v = dict()
@@ -1039,15 +1039,15 @@ class OverviewChartsView(BaseView):
                     value_c[sn] += [[len(d), d['rating'].mean(), d['n_turns'].mean()]]
                     x[sn] += [dt]
 
-        min_v, max_v = 10 * 10, - 10 ** 10
+        # min_v, max_v = 10 * 10, - 10 ** 10
         for sn in sorted(list(skill_names)):
             if len(value_v[sn]) > 0:
                 fig_dialog_finished_skill_day.add_scatter(name=sn, x=x[sn], y=value_v[sn], customdata=value_c[sn],
                                                           line={'dash': 'dot'},
                                                           hovertemplate='%{y:.2f}: count: %{customdata[0]} rating: %{customdata[1]:.2f} n_turns: %{customdata[2]:.2f}',
                                                           row=1, col=1)
-                min_v = min(min_v, min(value_v[sn]))
-                max_v = max(max_v, max(value_v[sn]))
+                # min_v = min(min_v, min(value_v[sn]))
+                # max_v = max(max_v, max(value_v[sn]))
 
         # for d, r in releases.values:
         #     if d > start:
@@ -1078,7 +1078,7 @@ class OverviewChartsView(BaseView):
 
         now = dt.datetime.now(tz=tz.gettz('UTC'))
         end = now
-        start = end - dt.timedelta(days=14)
+        start = end - dt.timedelta(days=31)
 
         x = dict()
         value_v = dict()
