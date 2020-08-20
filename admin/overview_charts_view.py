@@ -228,8 +228,8 @@ class OverviewChartsView(BaseView):
         #                                font=dict(color="black", size=10), opacity=0.7, row=2, col=1)
 
         dialog_time_fig.update_layout(height=500, width=1300, showlegend=True)
-        dialog_time_fig['layout']['yaxis1']['range'] = [50, 200]
-        dialog_time_fig['layout']['yaxis2']['range'] = [10, 35]
+        dialog_time_fig['layout']['yaxis1']['range'] = [2, 2000]
+        dialog_time_fig['layout']['yaxis2']['range'] = [2, 35]
         dialog_time_fig.update_layout(hovermode='x')
 
 
@@ -415,6 +415,30 @@ class OverviewChartsView(BaseView):
         skill_ratings_total_ma_n_turns_gt_7_fig_div = plot(skill_ratings_total_ma_n_turns_gt_7_fig, output_type='div', include_plotlyjs=False)
         context_dict["skill_ratings_total_ma_n_turns_gt_7_fig_div"] = skill_ratings_total_ma_n_turns_gt_7_fig_div
 
+
+        #
+        dialog_finished_reason_fig = self.plot_dialog_finished_reason(dialog_finished_df)
+        dialog_finished_reason_fig_div = plot(dialog_finished_reason_fig, output_type='div',
+                                                           include_plotlyjs=False)
+        context_dict["dialog_finished_reason_fig_div"] = dialog_finished_reason_fig_div
+
+        # ####
+        dialog_finished_reason_w_rats_fig = self.plot_dialog_finished_reasons_w_ratings(dialog_finished_df)
+        dialog_finished_reason_w_rats_fig_div = plot(dialog_finished_reason_w_rats_fig, output_type='div',
+                                              include_plotlyjs=False)
+        context_dict["dialog_finished_reason_w_rats_fig_div"] = dialog_finished_reason_w_rats_fig_div
+
+        #
+        dialog_finished_skill_rating_day_fig = self.plot_last_skill_in_dialog_with_rating(dialog_finished_df, skill_names)
+        dialog_finished_skill_rating_day_fig_div = plot(dialog_finished_skill_rating_day_fig, output_type='div',
+                                                     include_plotlyjs=False)
+        context_dict["dialog_finished_skill_rating_day_fig_div"] = dialog_finished_skill_rating_day_fig_div
+
+        # ##
+        last_skill_stop_exit_info_fig = self.plot_last_skill_stop_exit(dialog_finished_df, skill_names)
+        last_skill_stop_exit_info_fig_div = plot(last_skill_stop_exit_info_fig, output_type='div',
+                                                        include_plotlyjs=False)
+        context_dict["last_skill_stop_exit_info_fig_div"] = last_skill_stop_exit_info_fig_div
         return self.render('overview_charts.html', **context_dict)
 
     def prepare_data_for_ratings_plots(self, dialogs):
@@ -506,7 +530,7 @@ class OverviewChartsView(BaseView):
         now = dt.datetime.now(tz=tz.gettz('UTC'))
         # now = dt.datetime.now()
         end = now
-        start = end - dt.timedelta(days=14)
+        start = end - dt.timedelta(days=31)
 
         x = dict()
         skill_r = dict()
@@ -526,7 +550,7 @@ class OverviewChartsView(BaseView):
                 skill_r[r] += [v / len(d)]
                 skill_c[r] += [v]
                 x[r] += [date]
-
+        # import ipdb; ipdb.set_trace()
         # for n in skill_names:
         #    fig_daily_hist_ratings.add_trace(go.Scatter(x=x[n], y=skill_r[n], name=n, line={'dash': 'dot'}, marker={'size':8}), row=1, col=1)
         for r in ratings_values:
@@ -553,7 +577,7 @@ class OverviewChartsView(BaseView):
         x = []
         y = []
         z = []
-        n_days = 14
+        n_days = 30
         now = dt.datetime.now(tz=tz.gettz('UTC'))
         start_date = (now - dt.timedelta(days=n_days))
         start_date = pd.Timestamp(start_date)
@@ -575,19 +599,26 @@ class OverviewChartsView(BaseView):
                 # skip because some keys may absent
                 print(e)
                 pass
+        # print(z)
+        # print(x)
+        # print(y)
+
+
         rating_by_n_turns_fig = go.Figure(data=[go.Scatter(
             x=x,
             y=y,
             mode='markers',
             marker=dict(
                 # TODO fix bug with sizes of markers for the case when we in lack of data
-                size=[j / 1.5 for j in z],
+                size=[j / 0.05 for j in z],
+                # size=[j / 1.5 for j in z],
             ),
             customdata=z,
             hovertemplate='%{y:.2f}: count: %{customdata}',
             name='Rating by n_utt'
         )])
         rating_by_n_turns_fig.update_layout(title='Rating by n_turns for last {:d} days'.format(n_days),
+                                            # )
                                             showlegend=False, height=500, width=1300)
         rating_by_n_turns_fig['layout']['yaxis']['range'] = [0.1, 5.9]
         rating_by_n_turns_fig['layout']['xaxis']['title'] = {'text': 'n_turns'}
@@ -612,7 +643,7 @@ class OverviewChartsView(BaseView):
 
         now = dt.datetime.now(tz=tz.gettz('UTC'))
         end = now
-        start = end - dt.timedelta(days=14)
+        start = end - dt.timedelta(days=31)
 
         x = dict()
         skill_c = dict()
@@ -622,6 +653,8 @@ class OverviewChartsView(BaseView):
             skill_c[n] = []
             x[n] = []
             skill_z[n] = []
+
+        # import ipdb; ipdb.set_trace()
 
         for dt in pd.date_range(start=start, end=end, freq='D'):
             daily_ratings = skills_ratings[(skills_ratings['date'] < dt) & (skills_ratings['date'] >= dt - dt.freq * 1)]
@@ -641,6 +674,7 @@ class OverviewChartsView(BaseView):
                     row=1, col=1)
                 min_x = min(min_x, min(skill_c[n]))
                 max_x = max(max_x, max(skill_c[n]))
+
 
         # for d, r in releases.values:
         #     if d > start:
@@ -668,8 +702,11 @@ class OverviewChartsView(BaseView):
         import plotly.graph_objects as go
         import datetime as dt
 
-        avg_n_dialogs = 200
-        n_turns = 7
+        # avg_n_dialogs = 200
+        avg_n_dialogs = 3
+
+        # n_turns = 7
+        n_turns = 1
 
         fig_moving_avg = make_subplots(rows=1, cols=1, subplot_titles=(
         f'Skills Ratings, moving average over last {avg_n_dialogs} dialogs with number of turns > {n_turns}',))
@@ -764,8 +801,10 @@ class OverviewChartsView(BaseView):
         import plotly.graph_objects as go
         import datetime as dt
 
-        avg_n_dialogs = 200
-        n_turns = 7
+        # avg_n_dialogs = 200
+        avg_n_dialogs = 3
+        # n_turns = 7
+        n_turns = 1
 
         fig_moving_avg_d_total = make_subplots(rows=1, cols=1, subplot_titles=(
         f'Skills Ratings, -_total, moving average over last {avg_n_dialogs} dialogs with number of turns > {n_turns}',))
@@ -799,9 +838,12 @@ class OverviewChartsView(BaseView):
         d['cnt'] = sr_gb['rating'].count()
         d['r*cnt'] = d['cnt'] * d['rating']
         s_count = d['cnt'].rolling(avg_n_dialogs).sum()
+
+        # avg_n_dialogs=200 is too much for current data flow
+        # TODO fix: adapt for actual numbers
         moving_avg = d['r*cnt'].rolling(avg_n_dialogs).sum() / s_count
         total = dict()
-
+        # import ipdb; ipdb.set_trace()
         for (i, v), (_, c) in zip(moving_avg.items(), s_count.items()):
             date = dates_by_id[i]
             if not pd.isna(v):
@@ -825,7 +867,7 @@ class OverviewChartsView(BaseView):
                     x[sn] += [pd.to_datetime(date, utc=True)]
                     skill_r[sn] += [v - total[pd.to_datetime(date, utc=True)]]
                     skill_c[sn] += [c]
-
+        # import ipdb; ipdb.set_trace()
         for n in sorted(list(skill_names)):
             if len(skill_r[n]) == 0:
                 continue
@@ -848,3 +890,240 @@ class OverviewChartsView(BaseView):
         fig_moving_avg_d_total['layout']['yaxis1']['range'] = [min_r, max_r]
         # fig_moving_avg_d_total.show()
         return fig_moving_avg_d_total
+
+    def plot_dialog_finished_reason(self, dialog_finished_df):
+        """
+        Dialog finished reason, all, Last 24h
+        :return:
+        """
+        from plotly.subplots import make_subplots
+        import plotly.graph_objects as go
+        import datetime as dt
+
+        fig_dialog_finished_all_day = make_subplots(rows=1, cols=1,
+                                                    subplot_titles=('Dialog finished reason, all, Last 24h',))
+
+        now = dt.datetime.now(tz=tz.gettz('UTC'))
+        end = now
+        start = end - dt.timedelta(days=14)
+
+        x = dict()
+        value_v = dict()
+        value_c = dict()
+        finished_values = set(dialog_finished_df['alexa_command'].unique()) - {'no_alexa_command'}
+        finished_values |= {'no_command_no_goodbye', 'bot_goodbye'}
+        finished_values -= {'alexa handler: command logged'}
+        for n in finished_values:
+            value_v[n] = []
+            value_c[n] = []
+            x[n] = []
+
+        for dt in pd.date_range(start=start, end=end, freq='D'):
+            daily_data = dialog_finished_df[
+                (dialog_finished_df['date'] < dt) & (dialog_finished_df['date'] >= dt - dt.freq * 1)]
+            for v in finished_values:
+                if v.startswith('/'):
+                    v_count = (daily_data['alexa_command'] == v).sum()
+                    avg_n_turns = daily_data[daily_data['alexa_command'] == v]['n_turns'].mean()
+                else:
+                    v_count = daily_data[v].sum()
+                    avg_n_turns = daily_data[daily_data[v]]['n_turns'].mean()
+
+                if v_count > 0:
+                    value_v[v] += [v_count / len(daily_data)]
+                    value_c[v] += [[v_count, avg_n_turns]]
+                    x[v] += [dt]
+
+        for r in sorted(list(finished_values), reverse=True):
+            fig_dialog_finished_all_day.add_bar(name=r, x=x[r], y=value_v[r], customdata=value_c[r],
+                                                hovertemplate='%{y:.2f}: count: %{customdata[0]} n_turns:  %{customdata[1]:.2f}',
+                                                row=1, col=1)
+
+        fig_dialog_finished_all_day.update_layout(height=500, width=1300, showlegend=True)
+        fig_dialog_finished_all_day['layout']['yaxis1']['range'] = [0, 1]
+        fig_dialog_finished_all_day.update_layout(hovermode='x', barmode='stack')
+        # fig_dialog_finished_all_day.show()
+        return fig_dialog_finished_all_day
+
+    def plot_dialog_finished_reasons_w_ratings(self, dialog_finished_df):
+        """
+        Dialog finished reason, with rating, Last 24h
+        :return:
+        """
+        from plotly.subplots import make_subplots
+        import plotly.graph_objects as go
+        import datetime as dt
+        fig_dialog_finished_day = make_subplots(rows=1, cols=1,
+                                                subplot_titles=('Dialog finished reason, with rating, Last 24h',))
+
+        now = dt.datetime.now(tz=tz.gettz('UTC'))
+        end = now
+        start = end - dt.timedelta(days=14)
+
+        x = dict()
+        value_v = dict()
+        value_c = dict()
+        finished_values = set(dialog_finished_df['alexa_command'].unique()) - {'no_alexa_command'}
+        finished_values |= {'no_command_no_goodbye', 'bot_goodbye'}
+        # because of some bugged dialog
+        finished_values -= {'alexa handler: command logged'}
+        for n in finished_values:
+            value_v[n] = []
+            value_c[n] = []
+            x[n] = []
+
+        for dt in pd.date_range(start=start, end=end, freq='D'):
+            daily_data = dialog_finished_df[
+                (dialog_finished_df['date'] < dt) & (dialog_finished_df['date'] >= dt - dt.freq * 1)]
+            daily_data = daily_data[daily_data['has_rating'] == True]
+            for v in finished_values:
+                if v.startswith('/'):
+                    v_count = (daily_data['alexa_command'] == v).sum()
+                    avg_rating = daily_data[daily_data['alexa_command'] == v]['rating'].mean()
+                    avg_n_turns = daily_data[daily_data['alexa_command'] == v]['n_turns'].mean()
+                else:
+                    v_count = daily_data[v].sum()
+                    avg_rating = daily_data[daily_data[v]]['rating'].mean()
+                    avg_n_turns = daily_data[daily_data[v]]['n_turns'].mean()
+                if v_count > 0:
+                    value_v[v] += [v_count / len(daily_data)]
+                    value_c[v] += [[v_count, avg_rating, avg_n_turns]]
+                    x[v] += [dt]
+
+        for r in sorted(list(finished_values), reverse=True):
+            fig_dialog_finished_day.add_bar(name=r, x=x[r], y=value_v[r], customdata=value_c[r],
+                                            hovertemplate='%{y:.2f}: count: %{customdata[0]} rating: %{customdata[1]:.2f} n_turns: %{customdata[2]:.2f}',
+                                            row=1, col=1)
+
+        fig_dialog_finished_day.update_layout(height=500, width=1300, showlegend=True)
+        fig_dialog_finished_day['layout']['yaxis1']['range'] = [0, 1]
+        fig_dialog_finished_day.update_layout(hovermode='x', barmode='stack')
+        # fig_dialog_finished_day.show()
+        return fig_dialog_finished_day
+
+    def plot_last_skill_in_dialog_with_rating(self, dialog_finished_df, skill_names):
+        """
+        Last skill in dialog, with rating, Last 24h
+        :param dialog_finished_df:
+        :return:
+        """
+        from plotly.subplots import make_subplots
+        import plotly.graph_objects as go
+        import datetime as dt
+
+        fig_dialog_finished_skill_day = make_subplots(rows=1, cols=1,
+                                                      subplot_titles=('Last skill in dialog, with rating, Last 24h',))
+
+        now = dt.datetime.now(tz=tz.gettz('UTC'))
+        end = now
+        start = end - dt.timedelta(days=14)
+
+        x = dict()
+        value_v = dict()
+        value_c = dict()
+        skill_names = set(skill_names)
+        for n in skill_names:
+            value_c[n] = []
+            value_v[n] = []
+            x[n] = []
+
+        for dt in pd.date_range(start=start, end=end, freq='1D'):
+            daily_data = dialog_finished_df[
+                (dialog_finished_df['date'] < dt) & (dialog_finished_df['date'] >= dt - dt.freq)]
+            daily_data = daily_data[(daily_data['has_rating'])]
+
+            for sn in skill_names:
+                d = daily_data[daily_data['last_skill'] == sn]
+                if len(d) > 2:
+                    value_v[sn] += [len(d) / len(daily_data)]
+                    value_c[sn] += [[len(d), d['rating'].mean(), d['n_turns'].mean()]]
+                    x[sn] += [dt]
+
+        min_v, max_v = 10 * 10, - 10 ** 10
+        for sn in sorted(list(skill_names)):
+            if len(value_v[sn]) > 0:
+                fig_dialog_finished_skill_day.add_scatter(name=sn, x=x[sn], y=value_v[sn], customdata=value_c[sn],
+                                                          line={'dash': 'dot'},
+                                                          hovertemplate='%{y:.2f}: count: %{customdata[0]} rating: %{customdata[1]:.2f} n_turns: %{customdata[2]:.2f}',
+                                                          row=1, col=1)
+                min_v = min(min_v, min(value_v[sn]))
+                max_v = max(max_v, max(value_v[sn]))
+
+        # for d, r in releases.values:
+        #     if d > start:
+        #         fig_dialog_finished_skill_day.add_shape(
+        #             dict(type="line", x0=d, y0=min_v, x1=d, y1=max_v, line=dict(color="RoyalBlue", width=1)), row=1,
+        #             col=1)
+        #         fig_dialog_finished_skill_day.add_annotation(x=d, y=max_v, text=r, textangle=-90, showarrow=True,
+        #                                                      font=dict(color="black", size=10), opacity=0.7, row=1,
+        #                                                      col=1)
+
+        fig_dialog_finished_skill_day.update_layout(height=500, width=1300, showlegend=True)
+        # fig_dialog_finished_skill_day['layout']['yaxis1']['range'] = [0, 0.5]
+        fig_dialog_finished_skill_day.update_layout(hovermode='x')
+        # fig_dialog_finished_skill_day.show()
+        return fig_dialog_finished_skill_day
+
+    def plot_last_skill_stop_exit(self, dialog_finished_df, skill_names):
+        """
+        Last skill in dialog, "Alexa, stop", "Alexa, exit", "Alexa, quit", with rating, Last 24h
+        :return: 
+        """
+        from plotly.subplots import make_subplots
+        import plotly.graph_objects as go
+        import datetime as dt
+
+        fig_dialog_finished_stop_skill_day = make_subplots(rows=1, cols=1, subplot_titles=(
+        'Last skill in dialog, "Alexa, stop", "Alexa, exit", "Alexa, quit", with rating, Last 24h',))
+
+        now = dt.datetime.now(tz=tz.gettz('UTC'))
+        end = now
+        start = end - dt.timedelta(days=14)
+
+        x = dict()
+        value_v = dict()
+        value_c = dict()
+        skill_names = set(skill_names)
+        for n in skill_names:
+            value_c[n] = []
+            value_v[n] = []
+            x[n] = []
+
+        for dt in pd.date_range(start=start, end=end, freq='12H'):
+            daily_data = dialog_finished_df[
+                (dialog_finished_df['date'] < dt) & (dialog_finished_df['date'] >= dt - dt.freq * 2)]
+            daily_data = daily_data[(daily_data['has_rating'] == True) & (
+                        (daily_data['alexa_command'] == '/alexa_stop_handler') | (
+                            daily_data['alexa_command'] == '/alexa_USER_INITIATED'))]
+
+            for sn in skill_names:
+                d = daily_data[daily_data['last_skill'] == sn]
+                if len(d) > 2:
+                    value_v[sn] += [len(d) / len(daily_data)]
+                    value_c[sn] += [[len(d), d['rating'].mean(), d['n_turns'].mean()]]
+                    x[sn] += [dt]
+
+        min_v, max_v = 10 ** 10, - 10 ** 10
+        for sn in sorted(list(skill_names)):
+            if len(value_v[sn]) > 0:
+                fig_dialog_finished_stop_skill_day.add_scatter(name=sn, x=x[sn], y=value_v[sn], customdata=value_c[sn],
+                                                               line={'dash': 'dot'},
+                                                               hovertemplate='%{y:.2f}: count: %{customdata[0]} rating: %{customdata[1]:.2f} n_turns: %{customdata[2]:.2f}',
+                                                               row=1, col=1)
+                min_v = min(min_v, min(value_v[sn]))
+                max_v = max(max_v, max(value_v[sn]))
+
+        # for d, r in releases.values:
+        #     if d > start:
+        #         fig_dialog_finished_stop_skill_day.add_shape(
+        #             dict(type="line", x0=d, y0=min_v, x1=d, y1=max_v, line=dict(color="RoyalBlue", width=1)), row=1,
+        #             col=1)
+        #         fig_dialog_finished_stop_skill_day.add_annotation(x=d, y=max_v, text=r, textangle=-90, showarrow=True,
+        #                                                           font=dict(color="black", size=10), opacity=0.7, row=1,
+        #                                                           col=1)
+
+        fig_dialog_finished_stop_skill_day.update_layout(height=500, width=1300, showlegend=True)
+        # fig_dialog_finished_skill_day['layout']['yaxis1']['range'] = [0, 0.5]
+        fig_dialog_finished_stop_skill_day.update_layout(hovermode='x')
+        # fig_dialog_finished_stop_skill_day.show()
+        return fig_dialog_finished_stop_skill_day
