@@ -111,7 +111,7 @@ def dump_new_dialogs(session, dpagent_base_url="http://0.0.0.0:4242"):
     # request dp_agent api for list of dialogs
     dpad = DPADumper(dpa_base_url=dpagent_base_url)
 
-    page_suffix = "?limit=5"
+    page_suffix = "?limit=100"
     # page_suffix = "?limit=5&_active=0"
     # page_suffix = "?limit=5&_active=1"
 
