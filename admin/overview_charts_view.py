@@ -228,8 +228,8 @@ class OverviewChartsView(BaseView):
         #                                font=dict(color="black", size=10), opacity=0.7, row=2, col=1)
 
         dialog_time_fig.update_layout(height=500, width=1300, showlegend=True)
-        dialog_time_fig['layout']['yaxis1']['range'] = [2, 2000]
-        dialog_time_fig['layout']['yaxis2']['range'] = [2, 35]
+        dialog_time_fig['layout']['yaxis1']['range'] = [0, 2000]
+        dialog_time_fig['layout']['yaxis2']['range'] = [0, 35]
         dialog_time_fig.update_layout(hovermode='x')
 
 
@@ -263,7 +263,7 @@ class OverviewChartsView(BaseView):
 
     def plot_last_skill_in_dialog(self, dialog_finished_df):
         """
-        Last skill in dialog, all, Last 24h
+        Last skill in dialog, all
 
         :param dialog_finished_df:
         :return:
@@ -273,7 +273,7 @@ class OverviewChartsView(BaseView):
         import datetime as dt
 
         fig_dialog_finished_skill_all_day = make_subplots(rows=1, cols=1, subplot_titles=(
-        'Last skill in dialog, all, Last 24h',))
+        'Last skill in dialog, all',))
 
         now = dt.datetime.now(tz=tz.gettz('UTC'))
         end = now
@@ -381,14 +381,14 @@ class OverviewChartsView(BaseView):
         }
 
         ########################
-        # Last skill in dialog, all, Last 24h
+        # Last skill in dialog, all
         last_skill_fig = self.plot_last_skill_in_dialog(dialog_finished_df)
         last_skill_fig_div = plot(last_skill_fig, output_type='div', include_plotlyjs=False)
         # return render_template('overview_charts.html', name=name)
         context_dict["last_skill_fig_div"] = last_skill_fig_div
 
         # ######################################
-        # Ratings, hist, Last 24h
+        # Ratings, hist
         rating_hists_fig = self.plot_ratings_hists(skills_ratings_df)
         rating_hists_fig_div = plot(rating_hists_fig, output_type='div', include_plotlyjs=False)
         context_dict["rating_hists_fig_div"] = rating_hists_fig_div
@@ -401,7 +401,7 @@ class OverviewChartsView(BaseView):
 
         skill_names = list(set(skills_ratings_df["active_skill"].values))
         # ######################################
-        # Skill was selected, relative, Last 24h
+        # Skill was selected, relative
         daily_counts_relative_fig = self.plot_skill_was_selected_relative(skills_ratings_df, skill_names)
         daily_counts_relative_fig_div = plot(daily_counts_relative_fig, output_type='div', include_plotlyjs=False)
         context_dict["daily_counts_relative_fig_div"] = daily_counts_relative_fig_div
@@ -517,7 +517,7 @@ class OverviewChartsView(BaseView):
 
     def plot_ratings_hists(self, skills_ratings):
         """
-        Ratings, hist, Last 24h
+        Ratings, hist
         :param skills_ratings:
         :return:
         """
@@ -525,7 +525,7 @@ class OverviewChartsView(BaseView):
         import datetime as dt
 
         fig_daily_hist_ratings = make_subplots(rows=1, cols=1,
-                                               subplot_titles=('Ratings, hist, Last 24h',))
+                                               subplot_titles=('Ratings, hist',))
 
         now = dt.datetime.now(tz=tz.gettz('UTC'))
         # now = dt.datetime.now()
@@ -628,7 +628,7 @@ class OverviewChartsView(BaseView):
 
     def plot_skill_was_selected_relative(self, skills_ratings, skill_names):
         """
-        Skill was selected, relative, Last 24h
+        Skill was selected, relative
 
         :param skills_ratings:
         :param skill_names:
@@ -639,7 +639,7 @@ class OverviewChartsView(BaseView):
         import datetime as dt
 
         fig_daily_counts_relative = make_subplots(rows=1, cols=1,
-                                                  subplot_titles=('Skill was selected, relative, Last 24h',))
+                                                  subplot_titles=('Skill was selected, relative',))
 
         now = dt.datetime.now(tz=tz.gettz('UTC'))
         end = now
@@ -893,7 +893,7 @@ class OverviewChartsView(BaseView):
 
     def plot_dialog_finished_reason(self, dialog_finished_df):
         """
-        Dialog finished reason, all, Last 24h
+        Dialog finished reason, all
         :return:
         """
         from plotly.subplots import make_subplots
@@ -901,7 +901,7 @@ class OverviewChartsView(BaseView):
         import datetime as dt
 
         fig_dialog_finished_all_day = make_subplots(rows=1, cols=1,
-                                                    subplot_titles=('Dialog finished reason, all, Last 24h',))
+                                                    subplot_titles=('Dialog finished reason, all',))
 
         now = dt.datetime.now(tz=tz.gettz('UTC'))
         end = now
@@ -947,14 +947,14 @@ class OverviewChartsView(BaseView):
 
     def plot_dialog_finished_reasons_w_ratings(self, dialog_finished_df):
         """
-        Dialog finished reason, with rating, Last 24h
+        Dialog finished reason, with rating
         :return:
         """
         from plotly.subplots import make_subplots
         import plotly.graph_objects as go
         import datetime as dt
         fig_dialog_finished_day = make_subplots(rows=1, cols=1,
-                                                subplot_titles=('Dialog finished reason, with rating, Last 24h',))
+                                                subplot_titles=('Dialog finished reason, with rating',))
 
         now = dt.datetime.now(tz=tz.gettz('UTC'))
         end = now
@@ -1003,7 +1003,7 @@ class OverviewChartsView(BaseView):
 
     def plot_last_skill_in_dialog_with_rating(self, dialog_finished_df, skill_names):
         """
-        Last skill in dialog, with rating, Last 24h
+        Last skill in dialog, with rating
         :param dialog_finished_df:
         :return:
         """
@@ -1012,7 +1012,7 @@ class OverviewChartsView(BaseView):
         import datetime as dt
 
         fig_dialog_finished_skill_day = make_subplots(rows=1, cols=1,
-                                                      subplot_titles=('Last skill in dialog, with rating, Last 24h',))
+                                                      subplot_titles=('Last skill in dialog, with rating',))
 
         now = dt.datetime.now(tz=tz.gettz('UTC'))
         end = now
