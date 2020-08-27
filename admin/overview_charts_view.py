@@ -261,7 +261,7 @@ class OverviewChartsView(BaseView):
         # return render(request, 'dialogs/skills_sentiment_stacked.html', context_dict)
         return dialog_time_fig, shares_n_utt_fig
 
-    def plot_last_skill_in_dialog(self, dialog_finished_df):
+    def plot_last_skill_in_dialog(self, dialog_finished_df, skill_names):
         """
         Last skill in dialog, all
 
@@ -286,7 +286,7 @@ class OverviewChartsView(BaseView):
 
 
         # skill_names = set(skill_names)
-        skill_names = set(dialog_finished_df['last_skill'].values)
+        # skill_names = set(dialog_finished_df['last_skill'].values)
         # print(skill_names)
         for n in skill_names:
             value_c[n] = []
@@ -308,6 +308,7 @@ class OverviewChartsView(BaseView):
                     x[sn] += [date]
 
         min_v, max_v = 10 ** 10, - 10 ** 10
+
         for sn in sorted(list(skill_names)):
             if len(value_v[sn]) > 0:
                 print(sn)
@@ -379,10 +380,10 @@ class OverviewChartsView(BaseView):
             "shares_n_utt_div": shares_n_utt_div,
             "hrly_dialogs_ratings_fig_div": hrly_dialogs_ratings_fig_div
         }
-
+        skill_names = list(set(skills_ratings_df["active_skill"].values))
         ########################
         # Last skill in dialog, all
-        last_skill_fig = self.plot_last_skill_in_dialog(dialog_finished_df)
+        last_skill_fig = self.plot_last_skill_in_dialog(dialog_finished_df, skill_names)
         last_skill_fig_div = plot(last_skill_fig, output_type='div', include_plotlyjs=False)
         # return render_template('overview_charts.html', name=name)
         context_dict["last_skill_fig_div"] = last_skill_fig_div
@@ -399,7 +400,7 @@ class OverviewChartsView(BaseView):
         rating_by_n_turns_fig_div = plot(rating_by_n_turns_fig, output_type='div', include_plotlyjs=False)
         context_dict["rating_by_n_turns_fig_div"] = rating_by_n_turns_fig_div
 
-        skill_names = list(set(skills_ratings_df["active_skill"].values))
+
         # ######################################
         # Skill was selected, relative
         daily_counts_relative_fig = self.plot_skill_was_selected_relative(skills_ratings_df, skill_names)
