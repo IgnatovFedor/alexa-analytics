@@ -48,7 +48,7 @@ class SafeModelView(ModelView):
 
 
 def _alexa_id_formatter(view, context, model: Conversation, name):
-    return Markup(f"<a href='/conversation/{model.id}'>{model.mgid}</a>")
+    return Markup(f"<a href='/conversation/{model.id}'>{model.id}</a>")
 
 
 class FilterByActiveSkill(BaseSQLAFilter):
@@ -81,6 +81,15 @@ class FilterByTgId(BaseSQLAFilter):
     def operation(self):
         return u'contains'
 
+class FilterById(BaseSQLAFilter):
+    # Override to create an appropriate query and apply a filter to said query with the passed value from the filter UI
+    def apply(self, query, value, alias=None):
+        return query.filter(Conversation.id.contains(value))
+
+    # readable operation name. This appears in the middle filter line drop-down
+    def operation(self):
+        return u'contains'
+
 
 class FilterByVersion(BaseSQLAFilter):
     def apply(self, query, value, alias=None):
@@ -108,6 +117,7 @@ class ConversationModelView(SafeModelView):
         'rating',
         FilterByActiveSkill(column=None, name='active_skill'),
         FilterByUtteranceText(column=None, name='utterance_text'),
+        FilterById(column=None, name='dialog id'),
         FilterByTgId(column=None, name='tg_id'),
         FilterByVersion(column=None, name='version'),
         FilterByVersionList(column=None, name='version')
