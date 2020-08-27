@@ -102,6 +102,7 @@ class ConversationModelView(SafeModelView):
     column_list = ('id',  'length', 'date_start', 'feedback', 'rating', 'tg_id')
     column_filters = (
         'date_start',
+        'date_finish',
         'length',
         'feedback',
         'rating',
