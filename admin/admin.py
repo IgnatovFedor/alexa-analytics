@@ -61,6 +61,17 @@ class FilterByActiveSkill(BaseSQLAFilter):
         return u'equals'
 
 
+class FilterChannel(BaseSQLAFilter):
+    def apply(self, query, value, alias=None):
+        if value == '0':  # telegram
+            return query.filter(Conversation.human['user_external_id'].astext.op('~')('^\d{10}$'))
+        elif value == '1':  # site
+            return query.filter(Conversation.human['user_external_id'].astext.op('~')('^.{8}-.{4}-.{4}-.{4}-.{12}$'))
+
+    def operation(self):
+        return 'Select channel'
+
+
 class FilterByUtteranceText(BaseSQLAFilter):
     # Override to create an appropriate query and apply a filter to said query with the passed value from the filter UI
     def apply(self, query, value, alias=None):
@@ -120,7 +131,8 @@ class ConversationModelView(SafeModelView):
         FilterById(column=None, name='dialog id'),
         FilterByTgId(column=None, name='tg_id'),
         FilterByVersion(column=None, name='version'),
-        FilterByVersionList(column=None, name='version')
+        FilterByVersionList(column=None, name='version'),
+        FilterChannel(column=None, name='channel', options=(('1', 'Site'), ('0', 'Telegram')))
     )
     list_template = 'admin/model/custom_list.html'
     can_view_details = True
