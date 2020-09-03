@@ -1,3 +1,4 @@
+import json
 from sqlalchemy import Column, UnicodeText, Float, Integer, TIMESTAMP, CHAR, VARCHAR, ForeignKey
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
@@ -27,3 +28,11 @@ class UtteranceHypothesis(BaseModel):
 
     def __str__(self):
         return "(%s:%0.2f): %s" % (self.skill_name, self.confidence, self.text)
+
+    @property
+    def pretty_attrs(self):
+        """
+        prints attrs with pretty indentation
+        :return:
+        """
+        return json.dumps(self.other_attrs, ensure_ascii=False, indent=2)
