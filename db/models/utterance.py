@@ -36,7 +36,7 @@ class Utterance(BaseModel):
 
     @property
     def hypotheses(self):
-        return self.utterance_hypotheses
+        return sorted(self.utterance_hypotheses, key=lambda x: x.confidence, reverse=True)
 
     @property
     def author(self):
