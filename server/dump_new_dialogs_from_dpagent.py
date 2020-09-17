@@ -128,91 +128,98 @@ def dump_new_dialogs(session, dpagent_base_url="http://0.0.0.0:4242"):
                     conv = session.query(Conversation).filter_by(id=each_dialog_id).one()
                 except NoResultFound:
                     # request api for viewing dialogs
-                    dialog_data = dpad.request_api_for_dialog(each_dialog_id)
-                    start = DBManager._parse_time(dialog_data['date_start'])
-                    finish = DBManager._parse_time(dialog_data['date_finish'])
+                    try:
+                        dialog_data = dpad.request_api_for_dialog(each_dialog_id)
+                        start = DBManager._parse_time(dialog_data['date_start'])
+                        finish = DBManager._parse_time(dialog_data['date_finish'])
 
-                    if dialog_data["_active"] and finish > dt.datetime.now()-dt.timedelta(minutes=10):
-                        logger.info(f"skipping actve and fresh dialog: {dialog_data['dialog_id']}")
-                        continue
-                    conv_id = dialog_data['dialog_id']
+                        if dialog_data["_active"] and finish > dt.datetime.now()-dt.timedelta(minutes=10):
+                            logger.info(f"skipping actve and fresh dialog: {dialog_data['dialog_id']}")
+                            continue
+                        conv_id = dialog_data['dialog_id']
 
-                    conv = Conversation(
-                        id=conv_id,
-                        # Fix the shit!:
-                        mgid=conv_id[:24],
-                        date_start=start,
-                        date_finish=finish,
-                        human=dialog_data['human'],
-                        bot=dialog_data['bot'],
-                        length=len(dialog_data['utterances']),
-                        raw_utterances=dialog_data['utterances']
-                    )
-                    # ##########################
-                    # find ratings
-                    # get the last rating:
-                    if "attributes" in dialog_data:
-                        if 'ratings' in dialog_data['attributes']:
-                            for each_rat_dict in dialog_data['attributes']['ratings']:
-                                conv.rating = each_rat_dict['rating']
-                    # ##########################
-                    session.add(conv)
-                    session.commit()
-
-                    for utt_idx, utterance in enumerate(dialog_data['utterances']):
-                        utt = Utterance(text=utterance['text'],
-                                        date_time=DBManager._parse_time(utterance['date_time']),
-                                        active_skill=utterance.get('active_skill'),
-                                        attributes=utterance.get('attributes'),
-                                        conversation_id=conv_id)
-                        session.add(utt)
+                        conv = Conversation(
+                            id=conv_id,
+                            # Fix the shit!:
+                            mgid=conv_id[:24],
+                            date_start=start,
+                            date_finish=finish,
+                            human=dialog_data['human'],
+                            bot=dialog_data['bot'],
+                            length=len(dialog_data['utterances']),
+                            raw_utterances=dialog_data['utterances']
+                        )
+                        # ##########################
+                        # find ratings
+                        # get the last rating:
+                        if "attributes" in dialog_data:
+                            if 'ratings' in dialog_data['attributes']:
+                                for each_rat_dict in dialog_data['attributes']['ratings']:
+                                    conv.rating = each_rat_dict['rating']
+                        # ##########################
+                        session.add(conv)
                         session.commit()
 
-                        # ANNOTATIONS:
-                        try:
-                            for each_anno_key, each_anno_dict in dialog_data['utterances'][utt_idx][
-                                'annotations'].items():
-                                anno = Annotation(
-                                    parent_utterance_id=utt.id,
-                                    annotation_type=each_anno_key,
-                                    annotation_data=each_anno_dict
-                                )
-                                session.add(anno)
+                        for utt_idx, utterance in enumerate(dialog_data['utterances']):
+                            utt = Utterance(text=utterance['text'],
+                                            date_time=DBManager._parse_time(utterance['date_time']),
+                                            active_skill=utterance.get('active_skill'),
+                                            attributes=utterance.get('attributes'),
+                                            conversation_id=conv_id)
+                            session.add(utt)
                             session.commit()
-                        except Exception as e:
-                            logger.warning(e)
-                            # import ipdb;
-                            # ipdb.set_trace()
-                            # print("Investigate")
 
-                        # HYPOTHESES:
-                        if 'hypotheses' in dialog_data['utterances'][utt_idx]:
-                            for each_hypo in dialog_data['utterances'][utt_idx]['hypotheses']:
-
-                                # lets add dictionary with extra attributes from skills:
-                                other_attrs = copy(each_hypo)
-                                del other_attrs['skill_name']
-                                del other_attrs['text']
-                                del other_attrs['confidence']
-                                try:
-                                    # anno, _ = UtteranceHypothesis.objects.get_or_create(
-                                    hypo = UtteranceHypothesis(
+                            # ANNOTATIONS:
+                            try:
+                                for each_anno_key, each_anno_dict in dialog_data['utterances'][utt_idx][
+                                    'annotations'].items():
+                                    anno = Annotation(
                                         parent_utterance_id=utt.id,
-                                        skill_name=each_hypo['skill_name'],
-                                        text=each_hypo['text'],
-                                        confidence=each_hypo['confidence'],
-                                        other_attrs=other_attrs
+                                        annotation_type=each_anno_key,
+                                        annotation_data=each_anno_dict
                                     )
-                                    session.add(hypo)
-                                    session.commit()
-                                except Exception as e:
-                                    logger.warning(e)
-                                    # print(e)
-                                    # import ipdb;
-                                    # ipdb.set_trace()
-                                    # print("Investigate")
+                                    session.add(anno)
+                                session.commit()
+                            except Exception as e:
+                                logger.warning(e)
+                                # import ipdb;
+                                # ipdb.set_trace()
+                                # print("Investigate")
 
-                    logger.info(f'Successfully added a new conversation {conv_id} to local DB.')
+                            # HYPOTHESES:
+                            if 'hypotheses' in dialog_data['utterances'][utt_idx]:
+                                for each_hypo in dialog_data['utterances'][utt_idx]['hypotheses']:
+
+                                    # lets add dictionary with extra attributes from skills:
+                                    other_attrs = copy(each_hypo)
+                                    del other_attrs['skill_name']
+                                    del other_attrs['text']
+                                    del other_attrs['confidence']
+                                    try:
+                                        # anno, _ = UtteranceHypothesis.objects.get_or_create(
+                                        hypo = UtteranceHypothesis(
+                                            parent_utterance_id=utt.id,
+                                            skill_name=each_hypo['skill_name'],
+                                            text=each_hypo['text'],
+                                            confidence=each_hypo['confidence'],
+                                            other_attrs=other_attrs
+                                        )
+                                        session.add(hypo)
+                                        session.commit()
+                                    except Exception as e:
+                                        logger.warning(e)
+                                        # print(e)
+                                        # import ipdb;
+                                        # ipdb.set_trace()
+                                        # print("Investigate")
+
+                        logger.info(f'Successfully added a new conversation {conv_id} to local DB.')
+                    except Exception as e:
+                        logger.warning(f"Some problem occured during importing the dialog {each_dialog_id}")
+                        logger.warning(e)
+                        logger.info("Skipping")
+
+
         else:
             logger.warning("No dialogs in DP-Agent!")
         # print(results)
