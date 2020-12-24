@@ -1,5 +1,6 @@
 from flask_admin import BaseView, expose
 import json
+import os
 import pandas as pd
 import datetime as dt
 from dateutil import tz
@@ -16,6 +17,10 @@ class OverviewChartsView(BaseView):
         with open('core/config.json') as config_file:
             config = json.load(config_file)
         db_config = config['DB']
+        db_config['user'] = db_config.get('user') or os.getenv('DB_USER')
+        db_config['password'] = db_config.get('password') or os.getenv('DB_PASSWORD')
+        db_config['host'] = db_config.get('host') or os.getenv('DB_HOST')
+        db_config['dbname'] = db_config.get('dbname') or os.getenv('DB_NAME')
         self.session = get_session(db_config['user'], db_config['password'], db_config['host'],
                               db_config['dbname'])
 
@@ -175,7 +180,7 @@ class OverviewChartsView(BaseView):
         - Dialog time(sec), Daily
         - Avg number of utterances, Daily
         - Number of utterances, distribution, Daily
-        
+
         :param dialog_durations_df:
         :return:
         """
@@ -1068,7 +1073,7 @@ class OverviewChartsView(BaseView):
     def plot_last_skill_stop_exit(self, dialog_finished_df, skill_names):
         """
         Last skill in dialog, "Alexa, stop", "Alexa, exit", "Alexa, quit", with rating, Last 24h
-        :return: 
+        :return:
         """
         from plotly.subplots import make_subplots
         import plotly.graph_objects as go

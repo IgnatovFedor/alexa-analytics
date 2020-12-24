@@ -1,5 +1,6 @@
 import argparse
 import json
+import os
 
 from admin.admin import start_admin
 from db.db import DBManager, get_session
@@ -15,6 +16,7 @@ parser.add_argument('-ac', '--amazon-container', help='http of container to get 
 
 def verify_config(config):
     bad_keys = [k for k, v in config.items() if v == '']
+    print(bad_keys)
     if bad_keys:
         raise ValueError(f'Following parameters at config file are empty: {", ".join(bad_keys)}')
 
@@ -25,6 +27,10 @@ def main():
     with open('core/config.json') as config_file:
         config = json.load(config_file)
     db_config = config['DB']
+    db_config['user'] = db_config.get('user') or os.getenv('DB_USER')
+    db_config['password'] = db_config.get('password') or os.getenv('DB_PASSWORD')
+    db_config['host'] = db_config.get('host') or os.getenv('DB_HOST')
+    db_config['dbname'] = db_config.get('dbname') or os.getenv('DB_NAME')
     verify_config(db_config)
     session = get_session(db_config['user'], db_config['password'], db_config['host'], db_config['dbname'])
 
@@ -44,6 +50,8 @@ def main():
 
     if args.mode == 'server':
         admin = config['admin']
+        admin['user'] = admin.get('user') or os.getenv('ADMIN_USER')
+        admin['password'] = admin.get('password') or os.getenv('ADMIN_PASSWORD')
         start_admin(session, admin['user'], admin['password'], args.port, args.amazon_container)
 
     if args.mode == 'dpa_dumper':

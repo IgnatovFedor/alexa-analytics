@@ -23,3 +23,27 @@ https://github.com/deepmipt/dp-agent/pull/99 (но могут упасть фо�
 - залить данные из базы агента в базу админки: `python -m core.run dpa_dumper -ac http://0.0.0.0:4242`
 - запустить админку: `python -m core.run server -p 8001 -ac http://0.0.0.0:4242`
 - Fin. (check http://0.0.0.0:8001/conversation/cf13b21c547e2655225ef41177044eb8 http://0.0.0.0:8001/admin/conversation/details/?id=cf13b21c547e2655225ef41177044eb8&url=%2Fadmin%2Fconversation%2F)
+
+### kubernetes deployment
+
+install postgresql helm chart
+```
+helm repo add bitnami https://charts.bitnami.com/bitnami
+helm upgrade -i postgresql bitnami/postgresql -f ./helm/postgresql/values.yaml --set postgresqlPassword=<password>
+```
+create user for analytics database
+```
+kubernetes run -it --image=postgres postgres -- psql -h postgresql -U postgres
+create user analytics with password <password>;
+create database analytics with owner analytics;
+grant all on database analytics to analytics;
+```
+build docker image
+```
+docker build -t <tag> .
+docker push <tag>
+```
+install analytics helm chart
+```
+helm upgrade -i analytics ./helm/alexa-analytics --set image.repository=<tag> --set dbHost=<dbhost> --set dbUser=<dbuser> --set dbPassword=<dbpassword> --set dbName=<dbname> --set adminUser=<user> --set adminPassword=<password> --recreate-pods
+```
