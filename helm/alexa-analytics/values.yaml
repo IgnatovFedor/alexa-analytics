@@ -31,6 +31,36 @@ env: []
 # adminUser: admin
 # adminPassword: admin
 
+jobs:
+- name: dump-from-lab
+  image:
+    repository: alexa-analytics
+    pullPolicy: Always
+  schedule: "0 * * * *"
+  restartPolicy: OnFailure
+  command:
+  - bin/sh
+  - -c
+  args:
+  - >-
+    python3
+    -m core.run dpa.dumper
+    -ac https://7021.lnsigo.mipt.ru:443
+- name: dump-from-aws
+  schedule: "30 * * * *"
+  restartPolicy: OnFailure
+  image:
+    repository: alexa-analytics
+    pullPolicy: Always
+  command:
+  - bin/sh
+  - -c
+  args:
+  - >-
+    python3
+    -m core.run dpa.dumper
+    -ac http://agent:4242
+
 serviceAccount:
   # Specifies whether a service account should be created
   create: false

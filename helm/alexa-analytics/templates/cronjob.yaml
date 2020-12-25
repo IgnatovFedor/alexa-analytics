@@ -1,0 +1,50 @@
+{{- range $job := .Values.jobs }}
+---
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: {{ include "alexa-analytics.fullname" $ }}-{{ $job.name }}
+  labels:
+    {{- include "alexa-analytics.labels" $ | nindent 4 }}
+spec:
+  schedule: {{ $job.schedule | quote }}
+  {{- with $job.concurrencyPolicy }}
+  concurrencyPolicy: {{ . }}
+  {{- end }}
+  {{- with $job.failedJobsHistoryLimit }}
+  failedJobsHistoryLimit: {{ . }}
+  {{- end }}
+  {{- with $job.successfulJobsHistoryLimit }}
+  successfulJobsHistoryLimit: {{ . }}
+  {{- end }}
+  {{- with $job.startingDeadlineSeconds }}
+  startingDeadlineSeconds: {{ . }}
+  {{- end }}
+  jobTemplate:
+    metadata:
+      labels:
+        {{- include "alexa-analytics.labels" $ | nindent 8 }}
+    spec:
+      template:
+        metadata:
+          labels:
+            {{- include "alexa-analytics.labels" $ | nindent 12 }}
+        spec:
+          containers:
+          - name: {{ $job.name }}
+            image: {{ $job.image.repository }}
+            imagePullPolicy: {{ $job.image.pullPolicy }}
+            {{- if $job.command }}
+            command:
+              {{- range $job.command }}
+              - {{ . }}
+              {{- end }}
+            {{- end }}
+            {{- if $job.args }}
+            args:
+              {{- range $job.args }}
+              - {{ . }}
+              {{- end }}
+            {{- end }}
+          restartPolicy: {{ $job.restartPolicy }}
+{{- end }}
