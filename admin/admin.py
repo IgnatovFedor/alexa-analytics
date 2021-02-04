@@ -20,10 +20,16 @@ from db.models import Conversation
 from db.models.utterance import Utterance
 from flask_caching import Cache
 
+from werkzeug.contrib.profiler import ProfilerMiddleware
+
+
 config = {
     "DEBUG": True,          # some Flask specific configs
-    "CACHE_TYPE": "simple", # Flask-Caching related configs
-    "CACHE_DEFAULT_TIMEOUT": 300
+    # "CACHE_TYPE": "simple", # Flask-Caching related configs
+    "CACHE_TYPE": "filesystem",
+    "CACHE_DEFAULT_TIMEOUT": 300,
+    # path to directory with cache:
+    "CACHE_DIR": "cache_dir"
 }
 
 app = Flask(__name__)
@@ -31,7 +37,6 @@ app = Flask(__name__)
 app.config.from_mapping(config)
 cache = Cache(app)
 basic_auth = BasicAuth(app)
-
 
 class AuthException(HTTPException):
     def __init__(self, message):
@@ -154,7 +159,7 @@ class ConversationModelView(SafeModelView):
     column_sortable_list = ('length', 'date_start', 'feedback', 'rating', ('tg_id', Conversation.tg_id),)
     column_default_sort = ('date_start', True)
 
-    page_size = 1000
+    page_size = 100
 
     def render(self, template, **kwargs):
         if template == 'admin/model/custom_list.html':
@@ -419,4 +424,8 @@ def start_admin(session: Session, user: str, password: str, port: int, amazon_co
 
     admin.add_view(OverviewChartsView(name='Analytical Charts', endpoint='overview_charts_views'))
 
-    app.run(host='0.0.0.0', port=port)
+    # app.config['PROFILE'] = True
+    # app.wsgi_app = ProfilerMiddleware(app.wsgi_app, restrictions=[30])
+    # app.wsgi_app = ProfilerMiddleware(app.wsgi_app, restrictions=[1300])
+
+    app.run(host='0.0.0.0', port=port, debug=True)
