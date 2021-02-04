@@ -21,11 +21,57 @@
 
     {% block details_table %}
         <br/>
+<div>
 
+<table style="width:100%">
+<!--  <tr>-->
+<!--    <th>amazon_conv_id</th>-->
+<!--    <th>Lastname</th>-->
+<!--    <th>Age</th>-->
+<!--  </tr>-->
+  <tr>
+    <td>amazon_conv_id</td>
+    <td>{{model.amazon_conv_id}}</td>
+
+  </tr>
+  <tr>
+    <td>id</td>
+    <td>{{model.id}}</td>
+  </tr>
+  <tr>
+    <td>user_id</td>
+    <td>{{model.human["user_external_id"]}}</td>
+  </tr>
+
+  <tr>
+    <td>date_start</td>
+    <td>{{model.date_start}}</td>
+  </tr>
+
+  <tr>
+    <td>rating</td>
+    <td>{{model.rating}}</td>
+  </tr>
+
+  <tr>
+    <td>feedback</td>
+    <td>{{model.feedback}}</td>
+  </tr>
+      <tr>
+    <td>version</td>
+    <td>None</td>
+  </tr>
+</table>
+
+
+    <br/>
+
+<!--    version: {ver}'-->
+</div>
 
         <!--######################################################################-->
             <div id="Fedya_conversation_view">
-                <h2>Conversation view (Fedya skin)</h2>
+                <h2>Conversation view (F-skin)</h2>
                 <table>
                 {% for utt in model.utterances %}
                     {%- if utt.active_skill -%}
