@@ -6,6 +6,7 @@ import datetime as dt
 from dateutil import tz
 from plotly.offline import plot
 from db.models import Conversation
+from admin.admin import cache
 
 
 class OverviewChartsView(BaseView):
@@ -345,34 +346,42 @@ class OverviewChartsView(BaseView):
 
 
     @expose('/')
+    @cache.cached(timeout=86400)
     def index(self):
         """
         Main page for analytical overview
         :return:
         """
         # retrieve all dialogs
+        print("retrieve all dialogs...")
         dialogs = self.session.query(Conversation).order_by(Conversation.date_finish.desc())
         # print(dialogs)
-
+        print("all dialogs are retrieved. Preparing data for plotting...")
+        # long op
         dialog_durations_df, skills_ratings_df = self.prepare_data_for_plotting(dialogs)
 
         print("skills_ratings_df")
         print(skills_ratings_df)
         print("dialog_durations_df")
         print(dialog_durations_df)
-
+        print("prepare_dialog_finished_df...")
+        # long op
         dialog_finished_df = self.prepare_dialog_finished_df(dialogs)
         print("dialog_finished_df")
         print(dialog_finished_df)
         # retrieve data for skill frequency chart
         # prepare plot for it
         # TODO prepare data for number_of_dialogs_with_ratings_hrly wit dialogs start time and ratings
+        print("prepare_data_for_ratings_plots...")
+
         df = self.prepare_data_for_ratings_plots(dialogs)
+        print("plot_number_of_dialogs_with_ratings_hrly...")
         hrly_dialogs_ratings_fig = self.plot_number_of_dialogs_with_ratings_hrly(df)
 
 
         # retrieve data for Dialog time(sec), Daily chart
         # prepare plot of it
+        print("plot_skills_durations...")
         dialog_time_fig, shares_n_utt_fig = self.plot_skills_durations(dialog_durations_df)
         dialog_time_fig_div = plot(dialog_time_fig, output_type='div', include_plotlyjs=False)
         shares_n_utt_div = plot(shares_n_utt_fig, output_type='div', include_plotlyjs=False)
@@ -388,6 +397,7 @@ class OverviewChartsView(BaseView):
         skill_names = list(set(skills_ratings_df["active_skill"].values))
         ########################
         # Last skill in dialog, all
+        print("plot_last_skill_in_dialog...")
         last_skill_fig = self.plot_last_skill_in_dialog(dialog_finished_df, skill_names)
         last_skill_fig_div = plot(last_skill_fig, output_type='div', include_plotlyjs=False)
         # return render_template('overview_charts.html', name=name)
@@ -395,12 +405,14 @@ class OverviewChartsView(BaseView):
 
         # ######################################
         # Ratings, hist
+        print("plot_ratings_hists...")
         rating_hists_fig = self.plot_ratings_hists(skills_ratings_df)
         rating_hists_fig_div = plot(rating_hists_fig, output_type='div', include_plotlyjs=False)
         context_dict["rating_hists_fig_div"] = rating_hists_fig_div
 
         # ######################################
         # Rating by n_turns for last 7 days
+        print("plot_rating_by_turns...")
         rating_by_n_turns_fig = self.plot_rating_by_turns(skills_ratings_df)
         rating_by_n_turns_fig_div = plot(rating_by_n_turns_fig, output_type='div', include_plotlyjs=False)
         context_dict["rating_by_n_turns_fig_div"] = rating_by_n_turns_fig_div
@@ -408,11 +420,13 @@ class OverviewChartsView(BaseView):
 
         # ######################################
         # Skill was selected, relative
+        print("plot_skill_was_selected_relative...")
         daily_counts_relative_fig = self.plot_skill_was_selected_relative(skills_ratings_df, skill_names)
         daily_counts_relative_fig_div = plot(daily_counts_relative_fig, output_type='div', include_plotlyjs=False)
         context_dict["daily_counts_relative_fig_div"] = daily_counts_relative_fig_div
 
         #
+        print("plot_skills_ratings_ma_dialogs_with_gt_7_turns...")
         moving_avg_fig = self.plot_skills_ratings_ma_dialogs_with_gt_7_turns(skills_ratings_df, skill_names)
         moving_avg_fig_div = plot(moving_avg_fig, output_type='div', include_plotlyjs=False)
         context_dict["moving_avg_fig_div"] = moving_avg_fig_div

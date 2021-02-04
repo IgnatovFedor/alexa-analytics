@@ -18,8 +18,18 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from db.models import Conversation
 from db.models.utterance import Utterance
+from flask_caching import Cache
+
+config = {
+    "DEBUG": True,          # some Flask specific configs
+    "CACHE_TYPE": "simple", # Flask-Caching related configs
+    "CACHE_DEFAULT_TIMEOUT": 300
+}
 
 app = Flask(__name__)
+# tell Flask to use the above defined config
+app.config.from_mapping(config)
+cache = Cache(app)
 basic_auth = BasicAuth(app)
 
 
@@ -183,6 +193,9 @@ class ConversationModelView(SafeModelView):
             if result is not None:
                 result = f'{result:.3f}'
             kwargs['avg_rating'] = result
+        elif template == self.details_template:
+            print(f"details: {self.details_template} requested")
+
         return super(ConversationModelView, self).render(template, **kwargs)
 
     @action('export', 'Export')
