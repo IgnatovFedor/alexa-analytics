@@ -15,7 +15,7 @@ from sqlalchemy.orm.strategy_options import joinedload
 from sqlalchemy.sql import func, text
 from werkzeug.exceptions import HTTPException
 from sqlalchemy.orm.exc import NoResultFound
-
+from flask_admin.base import expose
 from db.models import Conversation
 from db.models.utterance import Utterance
 from flask_caching import Cache
@@ -161,6 +161,7 @@ class ConversationModelView(SafeModelView):
 
     page_size = 100
 
+    @cache.memoize(timeout=86400)
     def render(self, template, **kwargs):
         if template == 'admin/model/custom_list.html':
             search = kwargs['search']
