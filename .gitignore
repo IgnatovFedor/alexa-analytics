@@ -134,3 +134,7 @@ dmypy.json
 # Vim
 *.vim
 *.vimrc
+
+
+cache_dir
+cron_dump_dialogs.sh
