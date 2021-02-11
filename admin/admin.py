@@ -151,7 +151,7 @@ class ConversationModelView(SafeModelView):
     )
     list_template = 'admin/model/custom_list.html'
     can_view_details = True
-    details_template = "admin/model/view_conversation.html"
+    details_template = "admin/model/view_conv_raw_utterances_bootstrap.html"
     column_formatters = {
         'id': _alexa_id_formatter,
         'tg_id': lambda v, c, m, n: m.__getattribute__(n)[:5]
@@ -199,8 +199,8 @@ class ConversationModelView(SafeModelView):
             if result is not None:
                 result = f'{result:.3f}'
             kwargs['avg_rating'] = result
-        elif template == self.details_template:
-            print(f"details: {self.details_template} requested")
+        # elif template == self.details_template:
+        #     print(f"details: {self.details_template} requested")
 
         return super(ConversationModelView, self).render(template, **kwargs)
 
@@ -345,8 +345,69 @@ from .overview_charts_view import OverviewChartsView
 
 
 def start_admin(session: Session, user: str, password: str, port: int, amazon_container: str) -> None:
+
     @app.route('/conversation/<id>')
-    def show(id: str):
+    def view_conversation_details(id: str):
+        """Conversation view which renders raw_utterances without requesting DP-Agent db"""
+        try:
+            conv = session.query(Conversation).filter_by(id=id).one()
+        except NoResultFound:
+            conv = session.query(Conversation).filter_by(mgid=id).one()
+        except Exception as e:
+            return repr(e)
+        utts = []
+        utterances = list(conv.utterances)
+
+        def format_annotations(utt: dict):
+            annotations = utt['annotations']
+            annotations = ''.join([f'<tr><td>{key}</td><td>{val}</td></tr>' for key, val in annotations.items()])
+            hypotheses = utt.get('hypotheses', [])
+            h2 = defaultdict(lambda: '')
+            for hyp in hypotheses:
+                hyp.pop('annotations', None)
+                h2[hyp.pop('skill_name')] += str(hyp) + '<br>'
+            hypotheses = ''.join([f'<tr><td>{key}</td><td>{val}</td></tr>' for key, val in h2.items()])
+            return f'annotations:<table>{annotations}</table><br>hypotheses:<table>{hypotheses}</table>'
+
+        html_decorated_utts = []
+        for utt in conv.raw_utterances:
+            html_decorated_utts.append(format_annotations(utt))
+
+        for i, utt in enumerate(utterances):
+            if i != 0:
+                td = (utt.date_time - utterances[i-1].date_time).total_seconds()
+                td = '[{:.2f}] '.format(td)
+            else:
+                td = ''
+            utts.append(
+                f'<tr bgcolor={"lightgray" if utt.active_skill else "white"}>'
+                f'<td>{utt.active_skill or "Human"}</td>'
+                f'<td>'
+                f'<details><summary>{td}{utt.text}</summary>'
+                f'{html_decorated_utts[i] if html_decorated_utts else ""}</details></td></tr>'
+            )
+        if utterances[0].attributes is not None:
+            try:
+                ver = utterances[0].attributes.get('version')
+            except Exception as e:
+                ver = None
+        else:
+            ver = None
+        attrs = [
+            f'id: {conv.id}',
+            f'user_id: {conv.human["user_external_id"]}',
+            f'date_start: {conv.date_start}',
+            f'rating: {conv.rating}',
+            f'feedback: {conv.feedback}',
+            f'version: {ver}'
+        ]
+        return "<style>details summary {display: block;}"\
+               f"</style><table><tr>{'<br>'.join(attrs)}</tr>{''.join(utts)}</table>"
+
+    # Deprecated:
+    @app.route('/conversation_bak/<id>')
+    def show_bak(id: str):
+        """Conversation view which requests dp agent for retrieving info about conversation"""
         try:
             conv = session.query(Conversation).filter_by(id=id).one()
         except NoResultFound:
@@ -368,7 +429,7 @@ def start_admin(session: Session, user: str, password: str, port: int, amazon_co
             return f'annotations:<table>{annotations}</table><br>hypotheses:<table>{hypotheses}</table>'
 
         try:
-
+            # data request:
             url = f'{amazon_container}/api/dialogs/{conv.id}'
             resp = requests.get(url)
             if resp.status_code == 200:
@@ -381,12 +442,14 @@ def start_admin(session: Session, user: str, password: str, port: int, amazon_co
             original_utts = ['Timeout error' for _ in utterances]
         for i, utt in enumerate(utterances):
             if i != 0:
-                td = (utt.date_time - utterances[i-1].date_time).total_seconds()
+                td = (utt.date_time - utterances[i - 1].date_time).total_seconds()
                 td = '[{:.2f}] '.format(td)
             else:
                 td = ''
             utts.append(
-                f'<tr bgcolor={"lightgray" if utt.active_skill else "white"}><td>{utt.active_skill or "Human"}</td><td><details><summary>{td}{utt.text}</summary>{original_utts[i] if original_utts else ""}</details></td></tr>'
+                f'<tr bgcolor={"lightgray" if utt.active_skill else "white"}>'
+                f'<td>{utt.active_skill or "Human"}</td><td><details>'
+                f'<summary>{td}{utt.text}</summary>{original_utts[i] if original_utts else ""}</details></td></tr>'
             )
         if utterances[0].attributes is not None:
             try:
@@ -403,8 +466,9 @@ def start_admin(session: Session, user: str, password: str, port: int, amazon_co
             f'feedback: {conv.feedback}',
             f'version: {ver}'
         ]
-        return "<style>details summary {display: block;}"\
-               f"</style><table><tr>{'<br>'.join(attrs)}</tr>{''.join(utts)}</table>"
+        return "<style>details summary {display: block;}" \
+            f"</style><table><tr>{'<br>'.join(attrs)}</tr>{''.join(utts)}</table>"
+
 
     @app.route('/')
     def index():
