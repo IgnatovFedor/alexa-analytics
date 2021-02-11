@@ -32,10 +32,24 @@
         <br/>
 
         <div class="container-fluid">
-            <h2>Conversation View (Bootstrap3 skin)</h2>
-            <!--<div class="container">-->
-            <a href="#" class="btn btn-default openall">open all</a> <a href="#" class="btn btn-default closeall">close all</a>
-
+            <h2>Conversation attributes</h2>
+                <table class="table table-hover table-bordered searchable">
+                    <tr><td>ID</td><td>{{model.id}}</td></tr>
+                    {% for c, name in details_columns %}
+                        {% if c in ["mgid", "amazon_conv_id", "rating", "feedback", "human", "date_start", "date_finish"] %}
+                        <tr>
+                            <td>
+                                <b>{{ name }}</b>
+                            </td>
+                            <td>
+                                {{ get_value(model, c) }}
+                            </td>
+                        </tr>
+                        {% endif %}
+                    {% endfor %}
+                </table>
+            <br/>
+            <h2>Conversation log (bootstrap)</h2>
             {% for utt in model.raw_utterances %}
             {%- if utt.active_skill -%}
             <div class="row">
