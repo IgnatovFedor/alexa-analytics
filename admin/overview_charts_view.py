@@ -55,8 +55,8 @@ class OverviewChartsView(BaseView):
         print("retrieve all dialogs...")
         # dialogs = self.session.query(Conversation).order_by(Conversation.date_finish.desc())
         current_time = dt.datetime.utcnow()
-        # weeks_ago = current_time - dt.timedelta(weeks=2)
-        weeks_ago = current_time - dt.timedelta(weeks=1)
+        weeks_ago = current_time - dt.timedelta(weeks=2)
+        # weeks_ago = current_time - dt.timedelta(weeks=1)
         # weeks_ago = current_time - dt.timedelta(days=1)
         dialogs = self.session.query(Conversation).filter(Conversation.date_finish > weeks_ago).order_by(
             Conversation.date_finish.desc()).all()
