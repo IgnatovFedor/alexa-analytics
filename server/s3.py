@@ -51,6 +51,6 @@ class S3Manager:
         return df
 
     def get_ratings(self):
-        df = self._get_results('ratings.csv')
+        df = self._get_results('Ratings/ratings.csv')
         df['Approximate Start Time'] = to_datetime(df['Approximate Start Time'])
         return df

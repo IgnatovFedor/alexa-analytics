@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from logging import getLogger
 
 from pandas import DataFrame
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 from sqlalchemy.orm.session import Session
@@ -42,13 +42,15 @@ class DBManager:
             if finish - start > timedelta(hours=6):
                 log.info(f'Conversation {conversation["id"]} duration is greater than 6 hours. Countinue...')
                 continue
-            conv_id = conversation['id'] + str(int(time.mktime(start.timetuple())))
+            conv_id = conversation['id']
+            conversation['human']['user_external_id'] = conversation['human'].get('user_telegram_id', '')
             try:
                 conv: Conversation = self._session.query(Conversation).filter_by(id=conv_id).one()
                 conv.raw_utterances = conversation['utterances']
                 conversation['utterances'] = conversation['utterances'][conv.utterances.count():]
                 conv.length += len(conversation['utterances'])
                 conv.date_finish = finish
+                conv.human = conversation['human']
             except NoResultFound:
                 conversation_id = None
                 for utter in conversation['utterances']:
@@ -59,7 +61,7 @@ class DBManager:
                             break
                 conv = Conversation(
                     id=conv_id,
-                    mgid=conversation['id'],
+                    mgid=conv_id,
                     date_start=start,
                     date_finish=finish,
                     human=conversation['human'],
@@ -96,24 +98,35 @@ class DBManager:
         return time
 
     def add_ratings(self, df: DataFrame):
-        for i, row in df.iterrows():
+        log.info(f'Total ratings to add: {len(df.index)}')
+        for i, (j, row) in enumerate(df.iterrows()):
+            if i % 10 == 0 and i != 0:
+                log.info(f'Ratings: {i}')
+                self._session.commit()
             try:
-                conversation = self._session.query(Conversation).filter_by(amazon_conv_id=row['Conversation ID']).one()
-                conversation.rating = row['Rating'].replace('*', '')
+                conversation = self._session.query(Utterance).filter(text(
+                    f"attributes->>'conversation_id' = '{row['Conversation ID']}'")).one().conversation
+                if conversation.rating is not None:
+                    continue
+                conversation.rating = row['Rating']
             except MultipleResultsFound:
                 #TODO: make proper error handling
                 log.error(f'Multiple conversations found for ID: {row["Conversation ID"]}')
             except NoResultFound:
-                pass
-            if i%100 == 0:
-                log.info(f'Ratings: {i}')
-                self._session.commit()
+                log.info(f'NoResultFound for {row["Conversation ID"]}')
         self._session.commit()
 
     def add_feedbacks(self, df: DataFrame):
-        for i, row in df.iterrows():
+        log.info(f'Total feedbacks to add: {len(df.index)}')
+        for i, (j, row) in enumerate(df.iterrows()):
+            if i % 10 == 0:
+                log.info(f'Feedbacks: {i}')
+                self._session.commit()
             try:
-                conversation = self._session.query(Conversation).filter_by(amazon_conv_id=row['conversation_id']).one()
+                conversation = self._session.query(Utterance).filter(text(
+                    f"attributes->>'conversation_id' = '{row['conversation_id']}'")).one().conversation
+                if conversation.feedback is not None:
+                    continue
                 conversation.rating = conversation.rating or row['rating']
                 conversation.feedback = row['feedback']
             except MultipleResultsFound:
@@ -121,9 +134,6 @@ class DBManager:
                 log.error(f'Multiple conversations found for ID: {row["Conversation ID"]}')
             except NoResultFound:
                 pass
-            if i%100 == 0:
-                log.info(f'Feedbacks: {i}')
-                self._session.commit()
         self._session.commit()
 
     def get_last_utterance_time(self):
