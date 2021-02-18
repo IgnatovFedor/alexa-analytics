@@ -2,10 +2,12 @@ import argparse
 import json
 import os
 
+import pandas as pd
+
 from admin.admin import start_admin
 from db.db import DBManager, get_session
 from server.s3 import S3Manager
-from server.server import start_polling
+from server.server import start_polling, update_info
 
 parser = argparse.ArgumentParser()
 
@@ -57,10 +59,23 @@ def main():
     if args.mode == 'dpa_dumper':
         from server.dump_new_dialogs_from_dpagent import dump_new_dialogs
         dump_new_dialogs(session, dpagent_base_url=args.amazon_container)
+        s3_configs = config['S3']
+        for s3_config in s3_configs:
+            s3 = S3Manager(s3_config['key'],
+                           s3_config['secret'],
+                           s3_config['dialogs-bucket'],
+                           s3_config['stats-bucket'],
+                           s3_config['team-id'],
+                           s3_config['skip-tg'])
+            db = DBManager(session)
+            last_utt_time = db.get_last_utterance_time()
+            try:
+                update_info(s3, db, last_utt_time)
+            except pd.errors.EmptyDataError as err:
+                print(repr(err))
 
     if args.mode == "drop_tables":
         from db.db import drop_all_tables
-        import db.models
         drop_all_tables(session)
 
 if __name__ == "__main__":
