@@ -40,15 +40,16 @@ class OverviewChartsView(BaseView):
 
     @expose('/')
     # @cache.cached(timeout=86400)
+    @cache.cached(timeout=80400)
     def index(self):
         """
         Main page for analytical overview
         :return:
         """
-        # print("Retrieve releases data...")
-        # releases = read_releases("releases.txt")
-        # print("releases")
-        # print(releases)
+        print("Retrieve releases data...")
+        releases = read_releases("releases.txt")
+        print("releases")
+        print(releases)
 
         # retrieve all dialogs
         print("retrieve all dialogs...")
@@ -83,7 +84,7 @@ class OverviewChartsView(BaseView):
         ############################################################
         print("preparing all data for plotting...")
         dialog_durations_df, skills_ratings_df, dialog_finished_df, ratings_df = self.prepare_all_data(dialogs)
-        print("Done")
+
         # retrieve data for skill frequency chart
         # prepare plot for it
         print("ratings_df")
@@ -126,6 +127,10 @@ class OverviewChartsView(BaseView):
         rating_hists_fig_div = plot(rating_hists_fig, output_type='div', include_plotlyjs=False)
         context_dict["rating_hists_fig_div"] = rating_hists_fig_div
 
+
+        # ##########################################
+        # TODO ratings by version?
+
         # ######################################
         # Rating by n_turns for last 7 days
         print("plot_rating_by_turns...")
@@ -136,17 +141,17 @@ class OverviewChartsView(BaseView):
         # ######################################
         # Skill was selected, relative
         print("plot_skill_was_selected_relative...")
-        daily_counts_relative_fig = self.plot_skill_was_selected_relative(skills_ratings_df, skill_names)
+        daily_counts_relative_fig = self.plot_skill_was_selected_relative(skills_ratings_df, skill_names, releases)
         daily_counts_relative_fig_div = plot(daily_counts_relative_fig, output_type='div', include_plotlyjs=False)
         context_dict["daily_counts_relative_fig_div"] = daily_counts_relative_fig_div
 
         #
         print("plot_skills_ratings_ma_dialogs_with_gt_7_turns...")
-        moving_avg_fig = self.plot_skills_ratings_ma_dialogs_with_gt_7_turns(skills_ratings_df, skill_names)
+        moving_avg_fig = self.plot_skills_ratings_ma_dialogs_with_gt_7_turns(skills_ratings_df, skill_names, releases)
         moving_avg_fig_div = plot(moving_avg_fig, output_type='div', include_plotlyjs=False)
         context_dict["moving_avg_fig_div"] = moving_avg_fig_div
 
-        skill_ratings_total_ma_n_turns_gt_7_fig = self.plot_skill_ratings_total_ma_n_turns_gt_7(skills_ratings_df)
+        skill_ratings_total_ma_n_turns_gt_7_fig = self.plot_skill_ratings_total_ma_n_turns_gt_7(skills_ratings_df, releases)
         skill_ratings_total_ma_n_turns_gt_7_fig_div = plot(skill_ratings_total_ma_n_turns_gt_7_fig, output_type='div',
                                                            include_plotlyjs=False)
         context_dict["skill_ratings_total_ma_n_turns_gt_7_fig_div"] = skill_ratings_total_ma_n_turns_gt_7_fig_div
@@ -165,7 +170,7 @@ class OverviewChartsView(BaseView):
 
         #
         dialog_finished_skill_rating_day_fig = self.plot_last_skill_in_dialog_with_rating(dialog_finished_df,
-                                                                                          skill_names)
+                                                                                          skill_names, releases)
         dialog_finished_skill_rating_day_fig_div = plot(dialog_finished_skill_rating_day_fig, output_type='div',
                                                         include_plotlyjs=False)
         context_dict["dialog_finished_skill_rating_day_fig_div"] = dialog_finished_skill_rating_day_fig_div
@@ -338,8 +343,8 @@ class OverviewChartsView(BaseView):
         #                                font=dict(color="black", size=10), opacity=0.7, row=2, col=1)
 
         dialog_time_fig.update_layout(height=500, width=1300, showlegend=True)
-        dialog_time_fig['layout']['yaxis1']['range'] = [0, 2000]
-        dialog_time_fig['layout']['yaxis2']['range'] = [0, 35]
+        dialog_time_fig['layout']['yaxis1']['range'] = [min(time_)*0.9, max(time_)*1.1]
+        dialog_time_fig['layout']['yaxis2']['range'] = [0, max(n_utt)*1.1]
         dialog_time_fig.update_layout(hovermode='x')
 
 
@@ -448,9 +453,6 @@ class OverviewChartsView(BaseView):
         # fig_dialog_finished_skill_all_day.show()
         return fig_dialog_finished_skill_all_day
 
-
-
-
     def prepare_data_for_ratings_plots(self, dialogs):
         """
         Prepares dataframe for some plots
@@ -480,10 +482,11 @@ class OverviewChartsView(BaseView):
         fig = make_subplots(rows=2, cols=1, subplot_titles=(
         'Number of dialogs with ratings, hourly', 'Avg dialog rating, hourly'))
 
-        now = dt.datetime.now()
-        # now = dt.datetime.now(tz=tz.gettz('UTC'))
+        # now = dt.datetime.now()
+        now = dt.datetime.now(tz=tz.gettz('UTC'))
         end = dt.datetime(year=now.year, month=now.month, day=now.day, hour=now.hour)
-                       # tzinfo=now.tzinfo)
+        # end = dt.datetime(year=now.year, month=now.month, day=now.day, hour=now.hour,
+        #                tzinfo=now.tzinfo)
         start = end - dt.timedelta(days=14)
 
         x = []
@@ -502,7 +505,8 @@ class OverviewChartsView(BaseView):
 
 
         end = dt.datetime(year=now.year, month=now.month, day=now.day, hour=8)
-                          # tzinfo=now.tzinfo)
+        # end = dt.datetime(year=now.year, month=now.month, day=now.day, hour=8,
+        #                   tzinfo=now.tzinfo)
         start = end - dt.timedelta(days=14)
         x = []
         ratings = []
@@ -519,7 +523,8 @@ class OverviewChartsView(BaseView):
 
         # first plot start, end
         end = dt.datetime(year=now.year, month=now.month, day=now.day, hour=now.hour)
-                       # tzinfo=now.tzinfo)
+        # end = dt.datetime(year=now.year, month=now.month, day=now.day, hour=now.hour,
+        #                tzinfo=now.tzinfo)
         start = end - dt.timedelta(days=14)
         fig['layout']['xaxis2']['range'] = [start, end]
 
@@ -652,7 +657,7 @@ class OverviewChartsView(BaseView):
         # rating_by_n_turns_fig.show()
         return rating_by_n_turns_fig
 
-    def plot_skill_was_selected_relative(self, skills_ratings, skill_names):
+    def plot_skill_was_selected_relative(self, skills_ratings, skill_names, releases):
         """
         Skill was selected, relative
 
@@ -669,7 +674,8 @@ class OverviewChartsView(BaseView):
 
         now = dt.datetime.now(tz=tz.gettz('UTC'))
         end = now
-        start = end - dt.timedelta(days=31)
+        # start = end - dt.timedelta(days=31)
+        start = end - dt.timedelta(days=14)
 
         x = dict()
         skill_c = dict()
@@ -696,26 +702,27 @@ class OverviewChartsView(BaseView):
                 fig_daily_counts_relative.add_trace(
                     go.Scatter(x=x[n], y=skill_c[n], customdata=skill_z[n], name=n, line={'dash': 'dot'},
                                marker={'size': 8},
+                               line_shape='hvh',
                                hovertemplate='%{y:.3f}: count %{customdata}'),
                     row=1, col=1)
                 min_x = min(min_x, min(skill_c[n]))
                 max_x = max(max_x, max(skill_c[n]))
 
 
-        # for d, r in releases.values:
-        #     if d > start:
-        #         fig_daily_counts_relative.add_shape(
-        #             dict(type="line", x0=d, y0=min_x, x1=d, y1=max_x, line=dict(color="RoyalBlue", width=1)), row=1,
-        #             col=1)
-        #         fig_daily_counts_relative.add_annotation(x=d, y=max_x, text=r, textangle=-90, showarrow=True,
-        #                                                  font=dict(color="black", size=10), opacity=0.7, row=1, col=1)
+        for d, r in releases.values:
+            if d > start:
+                fig_daily_counts_relative.add_shape(
+                    dict(type="line", x0=d, y0=min_x, x1=d, y1=max_x, line=dict(color="RoyalBlue", width=1)), row=1,
+                    col=1)
+                fig_daily_counts_relative.add_annotation(x=d, y=max_x * 1.1, text=r, textangle=-90, showarrow=True,
+                                                         font=dict(color="black", size=10), opacity=0.7, row=1, col=1)
 
         fig_daily_counts_relative.update_layout(height=500, width=1300, showlegend=True)
         fig_daily_counts_relative.update_layout(hovermode='x')
         # fig_daily_counts_relative.show()
         return fig_daily_counts_relative
 
-    def plot_skills_ratings_ma_dialogs_with_gt_7_turns(self, skills_ratings, skill_names):
+    def plot_skills_ratings_ma_dialogs_with_gt_7_turns(self, skills_ratings, skill_names, releases):
         """
         Skills Ratings, moving average over last 200 dialogs with number of turns > 7
 
@@ -729,10 +736,11 @@ class OverviewChartsView(BaseView):
         import datetime as dt
 
         # avg_n_dialogs = 200
-        avg_n_dialogs = 3
+        avg_n_dialogs = 100
+        # avg_n_dialogs = 3
 
-        # n_turns = 7
-        n_turns = 1
+        n_turns = 7
+        # n_turns = 1
 
         fig_moving_avg = make_subplots(rows=1, cols=1, subplot_titles=(
         f'Skills Ratings, moving average over last {avg_n_dialogs} dialogs with number of turns > {n_turns}',))
@@ -801,13 +809,13 @@ class OverviewChartsView(BaseView):
             min_r = min(min_r, min(skill_r[n]))
             max_r = max(max_r, max(skill_r[n]))
 
-        # for d, r in releases.values:
-        #     if d > start:
-        #         fig_moving_avg.add_shape(
-        #             dict(type="line", x0=d, y0=min_r, x1=d, y1=max_r, line=dict(color="RoyalBlue", width=1)), row=1,
-        #             col=1)
-        #         fig_moving_avg.add_annotation(x=d, y=max_r, text=r, textangle=-90, showarrow=True,
-        #                                       font=dict(color="black", size=10), opacity=0.7, row=1, col=1)
+        for d, r in releases.values:
+            if d > start:
+                fig_moving_avg.add_shape(
+                    dict(type="line", x0=d, y0=min_r, x1=d, y1=max_r, line=dict(color="RoyalBlue", width=1)), row=1,
+                    col=1)
+                fig_moving_avg.add_annotation(x=d, y=max_r, text=r, textangle=-90, showarrow=True,
+                                              font=dict(color="black", size=10), opacity=0.7, row=1, col=1)
 
         fig_moving_avg.update_layout(height=500, width=1300, showlegend=True)
         fig_moving_avg.update_layout(hovermode='x')
@@ -815,7 +823,7 @@ class OverviewChartsView(BaseView):
         # fig_moving_avg.show()
         return fig_moving_avg
 
-    def plot_skill_ratings_total_ma_n_turns_gt_7(self, skills_ratings):
+    def plot_skill_ratings_total_ma_n_turns_gt_7(self, skills_ratings, releases):
         """
         Skills Ratings, -_total, moving average over last 200 dialogs with number of turns > 7
 
@@ -828,9 +836,10 @@ class OverviewChartsView(BaseView):
         import datetime as dt
 
         # avg_n_dialogs = 200
-        avg_n_dialogs = 3
-        # n_turns = 7
-        n_turns = 1
+        avg_n_dialogs = 100
+        # avg_n_dialogs = 3
+        n_turns = 7
+        # n_turns = 1
 
         fig_moving_avg_d_total = make_subplots(rows=1, cols=1, subplot_titles=(
         f'Skills Ratings, -_total, moving average over last {avg_n_dialogs} dialogs with number of turns > {n_turns}',))
@@ -903,13 +912,13 @@ class OverviewChartsView(BaseView):
             min_r = min(min_r, min(skill_r[n]))
             max_r = max(max_r, max(skill_r[n]))
 
-        # for d, r in releases.values:
-        #     if d > start:
-        #         fig_moving_avg_d_total.add_shape(
-        #             dict(type="line", x0=d, y0=min_r, x1=d, y1=max_r, line=dict(color="RoyalBlue", width=1)), row=1,
-        #             col=1)
-        #         fig_moving_avg_d_total.add_annotation(x=d, y=max_r, text=r, textangle=-90, showarrow=True,
-        #                                               font=dict(color="black", size=10), opacity=0.7, row=1, col=1)
+        for d, r in releases.values:
+            if d > start:
+                fig_moving_avg_d_total.add_shape(
+                    dict(type="line", x0=d, y0=min_r, x1=d, y1=max_r, line=dict(color="RoyalBlue", width=1)), row=1,
+                    col=1)
+                fig_moving_avg_d_total.add_annotation(x=d, y=max_r, text=r, textangle=-90, showarrow=True,
+                                                      font=dict(color="black", size=10), opacity=0.7, row=1, col=1)
 
         fig_moving_avg_d_total.update_layout(height=500, width=1300, showlegend=True)
         fig_moving_avg_d_total.update_layout(hovermode='x')
@@ -1027,7 +1036,7 @@ class OverviewChartsView(BaseView):
         # fig_dialog_finished_day.show()
         return fig_dialog_finished_day
 
-    def plot_last_skill_in_dialog_with_rating(self, dialog_finished_df, skill_names):
+    def plot_last_skill_in_dialog_with_rating(self, dialog_finished_df, skill_names, releases):
         """
         Last skill in dialog, with rating
         :param dialog_finished_df:
@@ -1065,24 +1074,24 @@ class OverviewChartsView(BaseView):
                     value_c[sn] += [[len(d), d['rating'].mean(), d['n_turns'].mean()]]
                     x[sn] += [dt]
 
-        # min_v, max_v = 10 * 10, - 10 ** 10
+        min_v, max_v = 10 * 10, - 10 ** 10
         for sn in sorted(list(skill_names)):
             if len(value_v[sn]) > 0:
                 fig_dialog_finished_skill_day.add_scatter(name=sn, x=x[sn], y=value_v[sn], customdata=value_c[sn],
                                                           line={'dash': 'dot'},
                                                           hovertemplate='%{y:.2f}: count: %{customdata[0]} rating: %{customdata[1]:.2f} n_turns: %{customdata[2]:.2f}',
                                                           row=1, col=1)
-                # min_v = min(min_v, min(value_v[sn]))
-                # max_v = max(max_v, max(value_v[sn]))
+                min_v = min(min_v, min(value_v[sn]))
+                max_v = max(max_v, max(value_v[sn]))
 
-        # for d, r in releases.values:
-        #     if d > start:
-        #         fig_dialog_finished_skill_day.add_shape(
-        #             dict(type="line", x0=d, y0=min_v, x1=d, y1=max_v, line=dict(color="RoyalBlue", width=1)), row=1,
-        #             col=1)
-        #         fig_dialog_finished_skill_day.add_annotation(x=d, y=max_v, text=r, textangle=-90, showarrow=True,
-        #                                                      font=dict(color="black", size=10), opacity=0.7, row=1,
-        #                                                      col=1)
+        for d, r in releases.values:
+            if d > start:
+                fig_dialog_finished_skill_day.add_shape(
+                    dict(type="line", x0=d, y0=min_v, x1=d, y1=max_v, line=dict(color="RoyalBlue", width=1)), row=1,
+                    col=1)
+                fig_dialog_finished_skill_day.add_annotation(x=d, y=max_v, text=r, textangle=-90, showarrow=True,
+                                                             font=dict(color="black", size=10), opacity=0.7, row=1,
+                                                             col=1)
 
         fig_dialog_finished_skill_day.update_layout(height=500, width=1300, showlegend=True)
         # fig_dialog_finished_skill_day['layout']['yaxis1']['range'] = [0, 0.5]
