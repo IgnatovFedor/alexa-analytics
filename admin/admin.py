@@ -161,7 +161,7 @@ class ConversationModelView(SafeModelView):
 
     page_size = 100
 
-    @cache.memoize(timeout=86400)
+    # @cache.memoize(timeout=86400)
     def render(self, template, **kwargs):
         if template == 'admin/model/custom_list.html':
             search = kwargs['search']
