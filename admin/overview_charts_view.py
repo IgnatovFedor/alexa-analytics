@@ -38,9 +38,10 @@ class OverviewChartsView(BaseView):
         self.session = get_session(db_config['user'], db_config['password'], db_config['host'],
                               db_config['dbname'])
 
+
+
     @expose('/')
-    # @cache.cached(timeout=86400)
-    @cache.cached(timeout=80400)
+    # @cache.cached(timeout=80400)
     def index(self):
         """
         Main page for analytical overview
@@ -58,6 +59,8 @@ class OverviewChartsView(BaseView):
         weeks_ago = current_time - dt.timedelta(weeks=2)
         # weeks_ago = current_time - dt.timedelta(weeks=1)
         # weeks_ago = current_time - dt.timedelta(days=1)
+        # dialogs = self.session.query(Conversation).order_by(
+        #     Conversation.date_finish.desc()).all()
         dialogs = self.session.query(Conversation).filter(Conversation.date_finish > weeks_ago).order_by(
             Conversation.date_finish.desc()).all()
             # Conversation.date_finish.desc()).options(subqueryload(Conversation.utterances))
@@ -78,8 +81,11 @@ class OverviewChartsView(BaseView):
         # print("dialog_finished_df")
         # print(dialog_finished_df)
         # TODO prepare data for number_of_dialogs_with_ratings_hrly wit dialogs start time and ratings
-        print("prepare_data_for_ratings_plots...")
+        print("calculate_skill_weights...")
 
+        dialog_skills_weights_data = self.calculate_skill_weights(dialogs)
+        print("dialog_skills_weights_data")
+        print(dialog_skills_weights_data)
         # ratings_df = self.prepare_data_for_ratings_plots(dialogs)
         ############################################################
         print("preparing all data for plotting...")
@@ -98,7 +104,27 @@ class OverviewChartsView(BaseView):
             print(e)
             hrly_dialogs_ratings_fig_div = ""
 
+        # Skill Ratings by Releases
+        ratings_by_releases_fig = self.plot_ratings_by_releases(skills_ratings_df, releases)
+        ratings_by_releases_fig_div = plot(ratings_by_releases_fig, output_type='div', include_plotlyjs=False)
         # retrieve data for Dialog time(sec), Daily chart
+
+        # Skill Ratings by Releases (EMA 0.5)
+        ratings_by_releases_ema_05_fig = self.plot_ratings_by_releases_ema_05(skills_ratings_df, releases, dialog_skills_weights_data)
+        ratings_by_releases_ema_05_fig_div = plot(ratings_by_releases_ema_05_fig, output_type='div', include_plotlyjs=False)
+
+        fig_versions_ratings_ema_more_fig = self.plot_ratings_by_releases_ema05_gt7(skills_ratings_df, releases, dialog_skills_weights_data)
+        versions_ratings_ema_more_fig_div = plot(fig_versions_ratings_ema_more_fig, output_type='div',
+                                                  include_plotlyjs=False)
+
+        fig_versions_ratings_ema_less_fig = self.plot_ratings_by_releases_ema05_lt7(skills_ratings_df, releases, dialog_skills_weights_data)
+        versions_ratings_ema_less_fig_div = plot(fig_versions_ratings_ema_less_fig, output_type='div',
+                                                     include_plotlyjs=False)
+
+        # plot_ratings_by_version
+        version_ratings_fig = self.plot_ratings_by_version(skills_ratings_df)
+        version_ratings_fig_div = plot(version_ratings_fig, output_type='div',
+                                                 include_plotlyjs=False)
         # prepare plot of it
         print("plot_skills_durations...")
         dialog_time_fig, shares_n_utt_fig = self.plot_skills_durations(dialog_durations_df)
@@ -109,8 +135,14 @@ class OverviewChartsView(BaseView):
             # "plot_title": "Duration analysis",
             "dialog_time_figure_div": dialog_time_fig_div,
             "shares_n_utt_div": shares_n_utt_div,
-            "hrly_dialogs_ratings_fig_div": hrly_dialogs_ratings_fig_div
+            "hrly_dialogs_ratings_fig_div": hrly_dialogs_ratings_fig_div,
+            "ratings_by_releases_fig_div": ratings_by_releases_fig_div,
+            "ratings_by_releases_ema_05_fig_div": ratings_by_releases_ema_05_fig_div,
+            "versions_ratings_ema_more_fig_div": versions_ratings_ema_more_fig_div,
+            "versions_ratings_ema_less_fig_div": versions_ratings_ema_less_fig_div,
+            "version_ratings_fig_div": version_ratings_fig_div,
         }
+
         skill_names = list(set(skills_ratings_df["active_skill"].values))
         ########################
         # Last skill in dialog, all
@@ -199,8 +231,10 @@ class OverviewChartsView(BaseView):
                 return dialog.raw_utterances[-1]['active_skill']
             except Exception as e:
                 print(e)
-                print("dialog.raw_utterances:")
-                print(dialog.raw_utterances)
+                # print("dialog.raw_utterances:")
+                # print(dialog.raw_utterances)
+                print("Exception")
+                print(e)
                 return "UnrecognizedSkill"
 
         dialog_finished_data = []
@@ -284,6 +318,74 @@ class OverviewChartsView(BaseView):
 
         return dialog_durations, skills_ratings, dialog_finished_df, ratings_df
 
+    def calculate_skill_weights(self, dialogs):
+        from collections import defaultdict
+
+        def get_skills_weights(dialog, alpha):
+            skills_weights = defaultdict(int)
+
+            # for utt in dialog['utterances']:
+            for utt in dialog.raw_utterances:
+                # print("utt repr:")
+                # print(utt)
+                # if utt['spk'] == 'Bot':
+                if utt['user']['user_type'] == 'human':
+                    pass
+                else:
+                # if utt['user']['user_type'] == 'bot':
+                #     print(utt['user']['user_type'] )
+                    active_skill = utt['active_skill']
+                    for sn in skills_weights:
+                        skills_weights[sn] *= (1 - alpha)
+                    skills_weights[active_skill] += 1 * alpha
+            return skills_weights
+
+        def get_skills_active_n(dialog):
+            skills_active_n = defaultdict(int)
+            # for utt in dialog['utterances']:
+            for utt in dialog.raw_utterances:
+                # if utt['spk'] == 'bot':
+                if utt['user']['user_type'] == 'human':
+                    pass
+                else:
+                    active_skill = utt['active_skill']
+                    skills_active_n[active_skill] += 1
+            return skills_active_n
+
+        get_skills_weights(dialogs[0], alpha=0.25), get_skills_active_n(dialogs[0])
+
+        # prepare dataframes with weighted rating
+        ema_alphas = [0.5, 0.2]
+        dialog_skills_weights_data = []
+        for dialog in dialogs:
+            r = dialog.rating
+            # v = dialog.version
+            if r == 'no_rating':
+                continue
+            conv_id = dialog.amazon_conv_id
+            # date = dialog['first_utt_time']
+            date = dialog.date_start
+            skills_active_n = get_skills_active_n(dialog)
+            to_add = {
+                'conv_id': conv_id,
+                'rating': r,
+                # 'version': v,
+                'date': date,
+                # 'n_turns': len(dialog['utterances']) // 2
+                'n_turns': len(dialog.raw_utterances) // 2
+            }
+            for a in ema_alphas:
+                skills_weights = get_skills_weights(dialog, alpha=a)
+                for sn in skills_weights:
+                    to_add[f'{sn}_{a}_w'] = skills_weights[sn]
+            for sn in skills_active_n:
+                to_add[f'{sn}_n'] = skills_active_n[sn]
+            dialog_skills_weights_data += [to_add]
+
+        dialog_skills_weights_data = pd.DataFrame(dialog_skills_weights_data)
+        dialog_skills_weights_data['date'] = pd.to_datetime(dialog_skills_weights_data['date'], utc=True)
+        dialog_skills_weights_data = dialog_skills_weights_data.fillna(0)
+        return dialog_skills_weights_data
 
     def plot_skills_durations(self, dialog_durations_df):
         """
@@ -470,68 +572,270 @@ class OverviewChartsView(BaseView):
         df = pd.DataFrame(data)
         return df
 
-    def plot_number_of_dialogs_with_ratings_hrly(self, data_df):
-        """
-        Number of dialogs with ratings, hourly
+    def plot_ratings_by_releases(self, skills_ratings, releases):
+        from plotly.subplots import make_subplots
+        import plotly.graph_objects as go
+        import datetime as dt
 
-        data_df DataFrame with ratings, start_time and id fields"""
+        fig_versions_ratings = make_subplots(rows=1, cols=1, subplot_titles=('Skills Ratings by releases',))
+
+        now = dt.datetime.now(tz=tz.gettz('UTC'))
+        end = now
+        start = end - dt.timedelta(days=14)
+
+        min_n_active_skill = 10
+
+        x = dict()
+        skill_r = dict()
+        skill_z = dict()
+        skill_names = set(skills_ratings['active_skill'].unique()) - set(['no_skill_name']) | set(['_total'])
+        for n in skill_names:
+            skill_r[n] = []
+            x[n] = []
+            skill_z[n] = []
+
+        min_r, max_r = 5, 0
+        releases_reversed = list(reversed(releases.values))
+        for i, (d_start, rel) in enumerate(releases_reversed):
+            if i == len(releases) - 1:
+                d_end = now
+            else:
+                d_end = releases_reversed[i + 1][0]
+            versions = rel.split('/')
+            release_ratings = skills_ratings[(skills_ratings['date'] < d_end) & (skills_ratings['date'] >= d_start)]
+            if len(release_ratings.groupby('conv_id').first()) < 50:
+                continue
+            #     release_ratings = release_ratings[release_ratings['version'].isin(versions)]
+            for (sn, r), (_, c) in zip(release_ratings.groupby('active_skill')['rating'].mean().items(),
+                                       release_ratings.groupby('active_skill')['rating'].count().items()):
+                if sn in skill_names:
+                    #             if c < min_n_active_skill:
+                    #                 continue
+                    skill_r[sn] += [r]
+                    x[sn] += [f'{d_end.date()} {rel}']
+                    skill_z[sn] += [c]
+            sn = '_total'
+            d = release_ratings.groupby('conv_id').first()
+            skill_r[sn] += [d['rating'].mean()]
+            x[sn] += [f'{d_end.date()} {rel}']
+            skill_z[sn] += [len(d)]
+
+        for n in sorted(list(skill_names), key=str.lower):
+            if len(skill_r[n]) > 0:
+                fig_versions_ratings.add_trace(go.Scatter(name=n, x=x[n], y=skill_r[n], customdata=skill_z[n],
+                                                          hovertemplate='%{y:.2f}: count %{customdata}',
+                                                          line_shape='hvh',
+                                                          line={'dash': 'dot'}, marker={'size': 8}), row=1, col=1)
+                min_r = min(min_r, min(skill_r[n]))
+                max_r = max(max_r, max(skill_r[n]))
+
+        fig_versions_ratings.update_layout(height=500, width=1300, showlegend=True, )
+        fig_versions_ratings['layout']['yaxis1']['range'] = [min_r - 0.1, max_r + 0.1]
+        fig_versions_ratings.update_layout(hovermode='x', xaxis={'type': 'category'})
+        # fig_versions_ratings.show()
+        return fig_versions_ratings
+
+    def plot_ratings_by_releases_ema_05(self, skills_ratings, releases, dialog_skills_weights_data):
+        from plotly.subplots import make_subplots
+        import plotly.graph_objects as go
+        import datetime as dt
+        ema_alpha = 0.5
+        fig_versions_ratings_ema = make_subplots(rows=1, cols=1,
+                                                 subplot_titles=(f'Skills Ratings by releases, EMA ({ema_alpha})',))
+
+        now = dt.datetime.now(tz=tz.gettz('UTC'))
+        end = now
+        start = end - dt.timedelta(days=14)
+
+        x = dict()
+        skill_r = dict()
+        skill_z = dict()
+        skill_names = set(skills_ratings['active_skill'].unique()) - set(['no_skill_name']) | set(['_total'])
+        for n in skill_names:
+            skill_r[n] = []
+            x[n] = []
+            skill_z[n] = []
+
+        min_r, max_r = 5, 0
+        releases_reversed = list(reversed(releases.values))
+        for i, (d_start, rel) in enumerate(releases_reversed):
+            if i == len(releases) - 1:
+                d_end = now
+            else:
+                d_end = releases_reversed[i + 1][0]
+            versions = rel.split('/')
+            release_ratings = dialog_skills_weights_data[
+                (dialog_skills_weights_data['date'] < d_end) & (dialog_skills_weights_data['date'] >= d_start)]
+            if len(release_ratings) < 50:
+                continue
+            #     release_ratings = release_ratings[release_ratings['version'].isin(versions)]
+
+            for sn in skill_names:
+                if sn != '_total':
+                    skill_active_n = release_ratings[f'{sn}_n'].sum()
+                    if release_ratings[f'{sn}_{ema_alpha}_w'].sum() > 0:
+                        r = (release_ratings[f'{sn}_{ema_alpha}_w'] * release_ratings['rating']).sum() / \
+                            release_ratings[f'{sn}_{ema_alpha}_w'].sum()
+                        skill_r[sn] += [r]
+                        x[sn] += [f'{d_end.date()} {rel}']
+                        skill_z[sn] += [skill_active_n]
+                else:
+                    skill_r[sn] += [release_ratings['rating'].mean()]
+                    x[sn] += [f'{d_end.date()} {rel}']
+                    skill_z[sn] += [len(release_ratings)]
+
+        for n in sorted(list(skill_names), key=str.lower):
+            if len(skill_r[n]) > 0:
+                fig_versions_ratings_ema.add_trace(go.Scatter(name=n, x=x[n], y=skill_r[n], customdata=skill_z[n],
+                                                              hovertemplate='%{y:.2f}: count %{customdata}',
+                                                              line_shape='hvh',
+                                                              line={'dash': 'dot'}, marker={'size': 8}), row=1, col=1)
+                min_r = min(min_r, min(skill_r[n]))
+                max_r = max(max_r, max(skill_r[n]))
+
+        fig_versions_ratings_ema.update_layout(height=500, width=1300, showlegend=True, )
+        fig_versions_ratings_ema['layout']['yaxis1']['range'] = [min_r - 0.1, max_r + 0.1]
+        fig_versions_ratings_ema.update_layout(hovermode='x', xaxis={'type': 'category'})
+
+        # fig_versions_ratings_ema.show()
+        return fig_versions_ratings_ema
+
+    def plot_ratings_by_releases_ema05_gt7(self, skills_ratings, releases, dialog_skills_weights_data):
+        from plotly.subplots import make_subplots
+        import plotly.graph_objects as go
+        import datetime as dt
+
+        n_turns = 7
+        ema_alpha = 0.5
+        fig_versions_ratings_ema_more = make_subplots(rows=1, cols=1, subplot_titles=(
+        f'Skills Ratings by releases, EMA ({ema_alpha}), n_turns > {n_turns}',))
+
+        now = dt.datetime.now(tz=tz.gettz('UTC'))
+        end = now
+        start = end - dt.timedelta(days=14)
+
+        x = dict()
+        skill_r = dict()
+        skill_z = dict()
+        skill_names = set(skills_ratings['active_skill'].unique()) - set(['no_skill_name']) | set(['_total'])
+        for n in skill_names:
+            skill_r[n] = []
+            x[n] = []
+            skill_z[n] = []
+
+        min_r, max_r = 5, 0
+        releases_reversed = list(reversed(releases.values))
+        for i, (d_start, rel) in enumerate(releases_reversed):
+            if i == len(releases) - 1:
+                d_end = now
+            else:
+                d_end = releases_reversed[i + 1][0]
+            versions = rel.split('/')
+            release_ratings = dialog_skills_weights_data[
+                (dialog_skills_weights_data['date'] < d_end) & (dialog_skills_weights_data['date'] >= d_start)]
+            release_ratings = release_ratings[release_ratings['n_turns'] > n_turns]
+            if len(release_ratings) < 50:
+                continue
+            #     release_ratings = release_ratings[release_ratings['version'].isin(versions)]
+
+            for sn in skill_names:
+                if sn != '_total':
+                    skill_active_n = release_ratings[f'{sn}_n'].sum()
+                    if release_ratings[f'{sn}_{ema_alpha}_w'].sum() > 0:
+                        r = (release_ratings[f'{sn}_{ema_alpha}_w'] * release_ratings['rating']).sum() / \
+                            release_ratings[f'{sn}_{ema_alpha}_w'].sum()
+                        skill_r[sn] += [r]
+                        x[sn] += [f'{d_end.date()} {rel}']
+                        skill_z[sn] += [skill_active_n]
+                else:
+                    skill_r[sn] += [release_ratings['rating'].mean()]
+                    x[sn] += [f'{d_end.date()} {rel}']
+                    skill_z[sn] += [len(release_ratings)]
+
+        for n in sorted(list(skill_names), key=str.lower):
+            if len(skill_r[n]) > 0:
+                fig_versions_ratings_ema_more.add_trace(go.Scatter(name=n, x=x[n], y=skill_r[n], customdata=skill_z[n],
+                                                                   hovertemplate='%{y:.2f}: count %{customdata}',
+                                                                   line_shape='hvh',
+                                                                   line={'dash': 'dot'}, marker={'size': 8}), row=1,
+                                                        col=1)
+                min_r = min(min_r, min(skill_r[n]))
+                max_r = max(max_r, max(skill_r[n]))
+
+        fig_versions_ratings_ema_more.update_layout(height=500, width=1300, showlegend=True, )
+        fig_versions_ratings_ema_more['layout']['yaxis1']['range'] = [min_r - 0.1, max_r + 0.1]
+        fig_versions_ratings_ema_more.update_layout(hovermode='x', xaxis={'type': 'category'})
+        # fig_versions_ratings_ema_more.show()
+        return fig_versions_ratings_ema_more
+
+    def plot_ratings_by_releases_ema05_lt7(self, skills_ratings, releases, dialog_skills_weights_data):
         import datetime as dt
         from plotly.subplots import make_subplots
         import plotly.graph_objects as go
 
-        fig = make_subplots(rows=2, cols=1, subplot_titles=(
-        'Number of dialogs with ratings, hourly', 'Avg dialog rating, hourly'))
+        n_turns = 7
+        ema_alpha = 0.5
+        fig_versions_ratings_ema_less = make_subplots(rows=1, cols=1, subplot_titles=(
+        f'Skills Ratings by releases, EMA ({ema_alpha}), n_turns <= {n_turns}',))
 
-        # now = dt.datetime.now()
         now = dt.datetime.now(tz=tz.gettz('UTC'))
-        end = dt.datetime(year=now.year, month=now.month, day=now.day, hour=now.hour)
-        # end = dt.datetime(year=now.year, month=now.month, day=now.day, hour=now.hour,
-        #                tzinfo=now.tzinfo)
+        end = now
         start = end - dt.timedelta(days=14)
 
-        x = []
-        counts = []
-        ratings = []
+        x = dict()
+        skill_r = dict()
+        skill_z = dict()
+        skill_names = set(skills_ratings['active_skill'].unique()) - set(['no_skill_name']) | set(['_total'])
+        for n in skill_names:
+            skill_r[n] = []
+            x[n] = []
+            skill_z[n] = []
 
-        for date in pd.date_range(start=start, end=end, freq='H'):
-            x += [date]
-            hourly_dialogs = data_df[(data_df['start_time'] < date) & (
-                    data_df['start_time'] > date - date .freq)]
-            counts += [len(hourly_dialogs)]
-            ratings += [0 if len(hourly_dialogs) == 0 else hourly_dialogs['rating'].mean()]
+        min_r, max_r = 5, 0
+        releases_reversed = list(reversed(releases.values))
+        for i, (d_start, rel) in enumerate(releases_reversed):
+            if i == len(releases) - 1:
+                d_end = now
+            else:
+                d_end = releases_reversed[i + 1][0]
+            versions = rel.split('/')
+            release_ratings = dialog_skills_weights_data[
+                (dialog_skills_weights_data['date'] < d_end) & (dialog_skills_weights_data['date'] >= d_start)]
+            release_ratings = release_ratings[release_ratings['n_turns'] <= n_turns]
+            if len(release_ratings) < 50:
+                continue
+            #     release_ratings = release_ratings[release_ratings['version'].isin(versions)]
 
-        fig.add_trace(go.Scatter(x=x, y=counts, fill='tozeroy', name='count', ), row=1, col=1)
-        fig.add_trace(go.Scatter(x=x, y=ratings, fill='tozeroy', name='rating', ), row=2, col=1)
+            for sn in skill_names:
+                if sn != '_total':
+                    skill_active_n = release_ratings[f'{sn}_n'].sum()
+                    if release_ratings[f'{sn}_{ema_alpha}_w'].sum() > 0:
+                        r = (release_ratings[f'{sn}_{ema_alpha}_w'] * release_ratings['rating']).sum() / \
+                            release_ratings[f'{sn}_{ema_alpha}_w'].sum()
+                        skill_r[sn] += [r]
+                        x[sn] += [f'{d_end.date()} {rel}']
+                        skill_z[sn] += [skill_active_n]
+                else:
+                    skill_r[sn] += [release_ratings['rating'].mean()]
+                    x[sn] += [f'{d_end.date()} {rel}']
+                    skill_z[sn] += [len(release_ratings)]
 
+        for n in sorted(list(skill_names), key=str.lower):
+            if len(skill_r[n]) > 0:
+                fig_versions_ratings_ema_less.add_trace(go.Scatter(name=n, x=x[n], y=skill_r[n], customdata=skill_z[n],
+                                                                   hovertemplate='%{y:.2f}: count %{customdata}',
+                                                                   line_shape='hvh',
+                                                                   line={'dash': 'dot'}, marker={'size': 8}), row=1,
+                                                        col=1)
+                min_r = min(min_r, min(skill_r[n]))
+                max_r = max(max_r, max(skill_r[n]))
 
-        end = dt.datetime(year=now.year, month=now.month, day=now.day, hour=8)
-        # end = dt.datetime(year=now.year, month=now.month, day=now.day, hour=8,
-        #                   tzinfo=now.tzinfo)
-        start = end - dt.timedelta(days=14)
-        x = []
-        ratings = []
-        if len(data_df)==0:
-            return None
-        for date in pd.date_range(start=start, end=end, freq='D'):
-            x += [date]
-            hourly_dialogs = data_df[(data_df['start_time'] <= date) & (
-                    data_df['start_time'] > date - date.freq)]
-            ratings += [0 if len(hourly_dialogs) == 0 else hourly_dialogs['rating'].mean()]
-        fig.add_trace(go.Scatter(x=x, y=ratings, name='rating, 24h'), row=2, col=1)
+        fig_versions_ratings_ema_less.update_layout(height=500, width=1300, showlegend=True, )
+        fig_versions_ratings_ema_less['layout']['yaxis1']['range'] = [min_r - 0.1, max_r + 0.1]
+        fig_versions_ratings_ema_less.update_layout(hovermode='x', xaxis={'type': 'category'})
+        # fig_versions_ratings_ema_less.show()
+        return fig_versions_ratings_ema_less
 
-        fig.update_layout(height=600, width=1200, showlegend=False)
-
-        # first plot start, end
-        end = dt.datetime(year=now.year, month=now.month, day=now.day, hour=now.hour)
-        # end = dt.datetime(year=now.year, month=now.month, day=now.day, hour=now.hour,
-        #                tzinfo=now.tzinfo)
-        start = end - dt.timedelta(days=14)
-        fig['layout']['xaxis2']['range'] = [start, end]
-
-        fig['layout']['yaxis2']['range'] = [0, 5.5]
-        fig.update_layout(hovermode='x')
-        # fig.show()
-        return fig
 
     def plot_ratings_hists(self, skills_ratings):
         """
@@ -580,6 +884,66 @@ class OverviewChartsView(BaseView):
         fig_daily_hist_ratings.update_layout(hovermode='x', barmode='stack')
         # fig_daily_hist_ratings.show()
         return fig_daily_hist_ratings
+
+    def plot_ratings_by_version(self, skills_ratings):
+        """
+        Ratings by version
+        :return:
+        """
+
+        def make_comparable(v):
+            s = []
+            if v == 'GOOD_OLD_BOT':
+                return [9, 6, 1]
+            if v == 'GOOD_NEW_BOT':
+                return [10, 0, 0]
+            if v is None:
+                return [0, 0, 0]
+            for c in v.split('.'):
+                try:
+                    s += [int(c)]
+                except ValueError:
+                    s += [int(c.split('-')[0])]
+                    s += [0]
+            return s
+
+        from plotly.subplots import make_subplots
+        import plotly.graph_objects as go
+
+        fig_version_ratings = make_subplots(rows=1, cols=1, subplot_titles=('Ratings by version',))
+
+        versions = set(skills_ratings['version']) - set(['no_info'])
+
+        x = dict()
+        version_r = dict()
+        version_c = dict()
+        ratings_values = list(range(6))
+        for n in ratings_values:
+            version_r[n] = []
+            version_c[n] = []
+            x[n] = []
+
+        for ver in sorted(versions, key=make_comparable):
+            version_ratings = skills_ratings[skills_ratings['version'] == ver]
+            d = version_ratings.groupby('conv_id').first()
+            d['rating_round'] = d['rating'].apply(round)
+            if len(d) < 50:
+                continue
+            rating_counts = d.groupby('rating_round').count()['rating']
+            avg_r = d['rating'].mean()
+            for r, v in rating_counts.items():
+                version_r[r] += [v / len(d)]
+                version_c[r] += [[v, avg_r]]
+                x[r] += [ver]
+
+        for r in ratings_values:
+            fig_version_ratings.add_bar(name=r, x=x[r], y=version_r[r], customdata=version_c[r],
+                                        hovertemplate='%{y:.2f}: count: %{customdata[0]} avg_rating: %{customdata[1]:.2f}')
+
+        fig_version_ratings.update_layout(height=500, width=1300, showlegend=True)
+        fig_version_ratings.update_layout(hovermode='x', barmode='stack', xaxis={'type': 'category'})
+        # fig_version_ratings.show()
+        return fig_version_ratings
 
     def plot_rating_by_turns(self, skills_ratings):
         """
@@ -1162,6 +1526,70 @@ class OverviewChartsView(BaseView):
         fig_dialog_finished_stop_skill_day.update_layout(hovermode='x')
         # fig_dialog_finished_stop_skill_day.show()
         return fig_dialog_finished_stop_skill_day
+
+
+    def plot_number_of_dialogs_with_ratings_hrly(self, data_df):
+        """
+        Number of dialogs with ratings, hourly
+
+        data_df DataFrame with ratings, start_time and id fields"""
+        import datetime as dt
+        from plotly.subplots import make_subplots
+        import plotly.graph_objects as go
+
+        fig = make_subplots(rows=2, cols=1, subplot_titles=(
+        'Number of dialogs with ratings, hourly', 'Avg dialog rating, hourly'))
+
+        # now = dt.datetime.now()
+        now = dt.datetime.now(tz=tz.gettz('UTC'))
+        end = dt.datetime(year=now.year, month=now.month, day=now.day, hour=now.hour)
+        # end = dt.datetime(year=now.year, month=now.month, day=now.day, hour=now.hour,
+        #                tzinfo=now.tzinfo)
+        start = end - dt.timedelta(days=14)
+
+        x = []
+        counts = []
+        ratings = []
+
+        for date in pd.date_range(start=start, end=end, freq='H'):
+            x += [date]
+            hourly_dialogs = data_df[(data_df['start_time'] < date) & (
+                    data_df['start_time'] > date - date .freq)]
+            counts += [len(hourly_dialogs)]
+            ratings += [0 if len(hourly_dialogs) == 0 else hourly_dialogs['rating'].mean()]
+
+        fig.add_trace(go.Scatter(x=x, y=counts, fill='tozeroy', name='count', ), row=1, col=1)
+        fig.add_trace(go.Scatter(x=x, y=ratings, fill='tozeroy', name='rating', ), row=2, col=1)
+
+
+        end = dt.datetime(year=now.year, month=now.month, day=now.day, hour=8)
+        # end = dt.datetime(year=now.year, month=now.month, day=now.day, hour=8,
+        #                   tzinfo=now.tzinfo)
+        start = end - dt.timedelta(days=14)
+        x = []
+        ratings = []
+        if len(data_df)==0:
+            return None
+        for date in pd.date_range(start=start, end=end, freq='D'):
+            x += [date]
+            hourly_dialogs = data_df[(data_df['start_time'] <= date) & (
+                    data_df['start_time'] > date - date.freq)]
+            ratings += [0 if len(hourly_dialogs) == 0 else hourly_dialogs['rating'].mean()]
+        fig.add_trace(go.Scatter(x=x, y=ratings, name='rating, 24h'), row=2, col=1)
+
+        fig.update_layout(height=600, width=1200, showlegend=False)
+
+        # first plot start, end
+        end = dt.datetime(year=now.year, month=now.month, day=now.day, hour=now.hour)
+        # end = dt.datetime(year=now.year, month=now.month, day=now.day, hour=now.hour,
+        #                tzinfo=now.tzinfo)
+        start = end - dt.timedelta(days=14)
+        fig['layout']['xaxis2']['range'] = [start, end]
+
+        fig['layout']['yaxis2']['range'] = [0, 5.5]
+        fig.update_layout(hovermode='x')
+        # fig.show()
+        return fig
 
     # def prepare_all_data(self, dialogs):
     #     """

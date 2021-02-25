@@ -14,14 +14,15 @@
     <li><a href="#hrly_dialogs_ratings_fig_div">Avg dialog rating, hourly</a></li>
     <li><a href="#dialog_time_figure_div">Dialog time(sec), Daily</a></li>
     <li><a href="#dialog_time_figure_div">Avg number of utterances, Daily</a></li>
-    <!--<li>Skills Ratings by releases</li>-->
+    <li><a href="#ratings_by_releases_fig_div">Skills Ratings by releases</a></li>
+    <li><a href="#versions_ratings_ema_more_fig_div">Skills Ratings by releases, EMA (0.5), n_turns > 7</a></li>
+    <li><a href="#versions_ratings_ema_less_fig_div">Skills Ratings by releases, EMA (0.5), n_turns <= 7</a></li>
     <!--<li>Skills Ratings by releases, EMA (0.5)</li>-->
-    <!--<li>Skills Ratings by releases, EMA (0.5), n_turns > 7</li>-->
-    <!--<li>Skills Ratings by releases, EMA (0.5), n_turns <= 7</li>-->
     <li><a href="#shares_n_utt_div">Number of utterances, distribution, Daily</a></li>
     <li><a href="#last_skill_fig_div">Last skill in dialog, all</a></li>
     <li><a href="#rating_hists_fig_div">Ratings, hist</a></li>
-    <!--<li>Ratings by version</li>-->
+    <li><a href="#version_ratings_fig_div">Ratings by version</a></li>
+
     <li><a href="#rating_by_n_turns_fig_div">Rating by n_turns for last days</a></li>
     <li><a href="#daily_counts_relative_fig_div">Skill was selected, relative</a></li>
     <li><a href="#moving_avg_fig_div">Skills Ratings, moving average over last 200 dialogs with number of turns > 1</a></li>
@@ -38,13 +39,18 @@
 
 <div id="hrly_dialogs_ratings_fig_div">{{hrly_dialogs_ratings_fig_div|safe }}</div>
 
-<div id="dialog_time_figure_div">{{dialog_time_figure_div|safe }}</div>
+<div id="ratings_by_releases_fig_div">{{ratings_by_releases_fig_div|safe }}</div>
+<div id="ratings_by_releases_ema_05_fig_div">{{ratings_by_releases_ema_05_fig_div|safe }}</div>
+<div id="versions_ratings_ema_more_fig_div">{{versions_ratings_ema_more_fig_div|safe }}</div>
+<div id="versions_ratings_ema_less_fig_div">{{versions_ratings_ema_less_fig_div|safe }}</div>
 
-<div id="shares_n_utt_div">{{shares_n_utt_div|safe }}</div>
+<div id="rating_hists_fig_div">{{rating_hists_fig_div|safe }}</div>
+<div id="version_ratings_fig_div">{{version_ratings_fig_div|safe }}</div>
+
 
 <div id="last_skill_fig_div">{{last_skill_fig_div|safe }}</div>
 
-<div id="rating_hists_fig_div">{{rating_hists_fig_div|safe }}</div>
+
 
 <div id="rating_by_n_turns_fig_div">{{rating_by_n_turns_fig_div|safe}}</div>
 
@@ -61,6 +67,10 @@
 <div id="dialog_finished_skill_rating_day_fig_div">{{dialog_finished_skill_rating_day_fig_div|safe}}</div>
 
 <!--<div>{{last_skill_stop_exit_info_fig_div|safe}}</div>-->
+<div id="dialog_time_figure_div">{{dialog_time_figure_div|safe }}</div>
+
+<div id="shares_n_utt_div">{{shares_n_utt_div|safe }}</div>
+
 
 {% endblock %}
 </html>
