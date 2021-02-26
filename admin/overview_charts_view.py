@@ -41,7 +41,7 @@ class OverviewChartsView(BaseView):
 
 
     @expose('/')
-    # @cache.cached(timeout=80400)
+    @cache.cached(timeout=80400)
     def index(self):
         """
         Main page for analytical overview
