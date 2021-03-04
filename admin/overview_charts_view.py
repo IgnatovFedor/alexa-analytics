@@ -10,6 +10,47 @@ from admin.admin import cache
 from tqdm import tqdm
 import datetime as dt
 
+skill_names_map = {
+     'meta_script_skill' : 'Activities Discussion',
+     'comet_dialog_skill': 'Personal Events Discussion',
+     'alice': 'Alice',
+     'book_skill' : 'Book skill',
+     'convert_reddit_with_personality' : 'ConveRT Reddit with Personality',
+     'convert_reddit': 'ConveRT Reddit Retrieval',
+     'eliza': 'Eliza',
+     'game_cooperative_skill': 'Game Skill',
+     'movie_skill': 'Movie Skill',
+     'news_api_skill': 'News Skill',
+     'program_y': 'AIML DREAM Chit-Chat',
+     'program_y_dangerous': 'AIML Dangerous Topics',
+     'program_y_wide': 'AIML General Chit-Chat',
+     'reddit_ner_skill': 'NER-Skill on Reddit',
+     'short_story_skill': 'Short-Story Skill',
+     'topicalchat_convert_retrieval': 'TopicalChat ConveRT Retrieval',
+    'intent_responder': 'Intent Responder',
+    'cobotqa': 'CoBot QA',
+    'valentines_day_skill': 'Valentines Day',
+    'weather_skill': 'Weather Skill',
+    'christmas_new_year_skill': 'Christmas & New Year',
+    'coronavirus_skill' : 'Coronavirus Skill',
+    'personal_info_skill' : 'Personal Info Skill',
+    'emotion_skill' : 'Emotion Skill',
+    'dummy_skill_dialog': 'Dummy Skill Dialog',
+    'fashion_tfidf_retrieval': 'Fashion TF-IDF Retrieval',
+    'sport_tfidf_retrieval': 'Sport TF-IDF Retrieval',
+    'movie_tfidf_retrieval': 'Movie TF-IDF Retrieval',
+    'music_tfidf_retrieval': 'Music TF-IDF Retrieval',
+    'animals_tfidf_retrieval': 'Animals TF-IDF Retrieval',
+    'entertainment_tfidf_retrieval': 'Entertainment TF-IDF Retrieval',
+    'science_technology_tfidf_retrieval': 'Science TF-IDF Retrieval',
+    'book_tfidf_retrieval': 'Book TF-IDF Retrieval',
+    'tfidf_retrieval' : 'TF-IDF Retrieval',
+    'superbowl_skill' : 'Superbowl',
+    'misheard_asr' : 'Misheard ASR Skill',
+    'oscar_skill' : 'Oscar',
+    'small_talk_skill' : 'Small Talk Skill',
+    'dummy_skill' : 'Dummy Skill',
+}
 
 def read_releases(path):
     """search file with releases and parses it to provide information about dates and releases.
@@ -55,13 +96,14 @@ class OverviewChartsView(BaseView):
         # retrieve all dialogs
         print("retrieve all dialogs...")
         # dialogs = self.session.query(Conversation).order_by(Conversation.date_finish.desc())
-        current_time = dt.datetime.utcnow()
-        weeks_ago = current_time - dt.timedelta(weeks=2)
+        # current_time = dt.datetime.utcnow()
+        today = dt.date.today()
+        weeks_ago = today - dt.timedelta(weeks=2)
         # weeks_ago = current_time - dt.timedelta(weeks=1)
         # weeks_ago = current_time - dt.timedelta(days=1)
         # dialogs = self.session.query(Conversation).order_by(
         #     Conversation.date_finish.desc()).all()
-        dialogs = self.session.query(Conversation).filter(Conversation.date_finish > weeks_ago).order_by(
+        dialogs = self.session.query(Conversation).filter(Conversation.date_finish > weeks_ago).filter(Conversation.date_finish < today).order_by(
             Conversation.date_finish.desc()).all()
             # Conversation.date_finish.desc()).options(subqueryload(Conversation.utterances))
         ############################################################
@@ -78,8 +120,7 @@ class OverviewChartsView(BaseView):
         # print("prepare_dialog_finished_df...")
         # # long op
         # dialog_finished_df = self.prepare_dialog_finished_df(dialogs)
-        # print("dialog_finished_df")
-        # print(dialog_finished_df)
+
         # TODO prepare data for number_of_dialogs_with_ratings_hrly wit dialogs start time and ratings
         print("calculate_skill_weights...")
 
@@ -95,6 +136,8 @@ class OverviewChartsView(BaseView):
         # prepare plot for it
         print("ratings_df")
         print(ratings_df)
+        print("dialog_finished_df")
+        print(dialog_finished_df)
         print("plot_number_of_dialogs_with_ratings_hrly...")
         try:
             hrly_dialogs_ratings_fig = self.plot_number_of_dialogs_with_ratings_hrly(ratings_df)
@@ -121,13 +164,13 @@ class OverviewChartsView(BaseView):
         versions_ratings_ema_less_fig_div = plot(fig_versions_ratings_ema_less_fig, output_type='div',
                                                      include_plotlyjs=False)
 
-        # plot_ratings_by_version
+        # Ratings by version
         version_ratings_fig = self.plot_ratings_by_version(skills_ratings_df)
         version_ratings_fig_div = plot(version_ratings_fig, output_type='div',
                                                  include_plotlyjs=False)
         # prepare plot of it
         print("plot_skills_durations...")
-        dialog_time_fig, shares_n_utt_fig = self.plot_skills_durations(dialog_durations_df)
+        dialog_time_fig, shares_n_utt_fig = self.plot_skills_durations(dialog_durations_df, releases)
         dialog_time_fig_div = plot(dialog_time_fig, output_type='div', include_plotlyjs=False)
         shares_n_utt_div = plot(shares_n_utt_fig, output_type='div', include_plotlyjs=False)
 
@@ -183,24 +226,28 @@ class OverviewChartsView(BaseView):
         moving_avg_fig_div = plot(moving_avg_fig, output_type='div', include_plotlyjs=False)
         context_dict["moving_avg_fig_div"] = moving_avg_fig_div
 
+        print("plot_skill_ratings_total_ma_n_turns_gt_7...")
         skill_ratings_total_ma_n_turns_gt_7_fig = self.plot_skill_ratings_total_ma_n_turns_gt_7(skills_ratings_df, releases)
         skill_ratings_total_ma_n_turns_gt_7_fig_div = plot(skill_ratings_total_ma_n_turns_gt_7_fig, output_type='div',
                                                            include_plotlyjs=False)
         context_dict["skill_ratings_total_ma_n_turns_gt_7_fig_div"] = skill_ratings_total_ma_n_turns_gt_7_fig_div
 
         #
+        print("plot_dialog_finished_reason...")
         dialog_finished_reason_fig = self.plot_dialog_finished_reason(dialog_finished_df)
         dialog_finished_reason_fig_div = plot(dialog_finished_reason_fig, output_type='div',
                                               include_plotlyjs=False)
         context_dict["dialog_finished_reason_fig_div"] = dialog_finished_reason_fig_div
 
         # ####
+        print("plot_dialog_finished_reasons_w_ratings...")
         dialog_finished_reason_w_rats_fig = self.plot_dialog_finished_reasons_w_ratings(dialog_finished_df)
         dialog_finished_reason_w_rats_fig_div = plot(dialog_finished_reason_w_rats_fig, output_type='div',
                                                      include_plotlyjs=False)
         context_dict["dialog_finished_reason_w_rats_fig_div"] = dialog_finished_reason_w_rats_fig_div
 
         #
+        print("plot_last_skill_in_dialog_with_rating...")
         dialog_finished_skill_rating_day_fig = self.plot_last_skill_in_dialog_with_rating(dialog_finished_df,
                                                                                           skill_names, releases)
         dialog_finished_skill_rating_day_fig_div = plot(dialog_finished_skill_rating_day_fig, output_type='div',
@@ -208,10 +255,12 @@ class OverviewChartsView(BaseView):
         context_dict["dialog_finished_skill_rating_day_fig_div"] = dialog_finished_skill_rating_day_fig_div
 
         # ##
+        print("plot_last_skill_stop_exit...")
         last_skill_stop_exit_info_fig = self.plot_last_skill_stop_exit(dialog_finished_df, skill_names)
         last_skill_stop_exit_info_fig_div = plot(last_skill_stop_exit_info_fig, output_type='div',
                                                  include_plotlyjs=False)
         context_dict["last_skill_stop_exit_info_fig_div"] = last_skill_stop_exit_info_fig_div
+        print("render!")
         return self.render('overview_charts.html', **context_dict)
 
     def prepare_all_data(self, dialogs):
@@ -387,7 +436,7 @@ class OverviewChartsView(BaseView):
         dialog_skills_weights_data = dialog_skills_weights_data.fillna(0)
         return dialog_skills_weights_data
 
-    def plot_skills_durations(self, dialog_durations_df):
+    def plot_skills_durations(self, dialog_durations_df, releases):
         """
         - Dialog time(sec), Daily
         - Avg number of utterances, Daily
@@ -431,19 +480,20 @@ class OverviewChartsView(BaseView):
                                          name='Average number of utterances', line={'dash': 'dot'},
                                          # marker={'size': 8}))
                                          marker={'size': 8}), row=2, col=1)
+        ###################
+        for d, r in releases.values:
+            dialog_time_fig.add_shape(
+                dict(type="line", x0=d, y0=0, x1=d, y1=200, line=dict(color="RoyalBlue", width=1)),
+                row=1, col=1)
+            dialog_time_fig.add_annotation(x=d, y=200, text=r, textangle=-90, showarrow=True,
+                                       font=dict(color="black", size=10), opacity=0.7, row=1, col=1)
+            dialog_time_fig.add_shape(
+                dict(type="line", x0=d, y0=10, x1=d, y1=35, line=dict(color="RoyalBlue", width=1)),
+                row=2, col=1)
+            dialog_time_fig.add_annotation(x=d, y=35, text=r, textangle=-90, showarrow=True,
+                                       font=dict(color="black", size=10), opacity=0.7, row=2, col=1)
 
-        # for d, r in releases.values:
-        #     dialog_time.add_shape(
-        #         dict(type="line", x0=d, y0=0, x1=d, y1=200, line=dict(color="RoyalBlue", width=1)),
-        #         row=1, col=1)
-        #     dialog_time.add_annotation(x=d, y=200, text=r, textangle=-90, showarrow=True,
-        #                                font=dict(color="black", size=10), opacity=0.7, row=1, col=1)
-        #     dialog_time.add_shape(
-        #         dict(type="line", x0=d, y0=10, x1=d, y1=35, line=dict(color="RoyalBlue", width=1)),
-        #         row=2, col=1)
-        #     dialog_time.add_annotation(x=d, y=35, text=r, textangle=-90, showarrow=True,
-        #                                font=dict(color="black", size=10), opacity=0.7, row=2, col=1)
-
+        #############
         dialog_time_fig.update_layout(height=500, width=1300, showlegend=True)
         dialog_time_fig['layout']['yaxis1']['range'] = [min(time_)*0.9, max(time_)*1.1]
         dialog_time_fig['layout']['yaxis2']['range'] = [0, max(n_utt)*1.1]
@@ -460,13 +510,13 @@ class OverviewChartsView(BaseView):
                                               name='n_utts<=' + str(max_lens[i]),
                                               line={'dash': 'dot'}, marker={'size': 8}), row=1,
                                    col=1)
-        # # for d, r in releases.values:
-        # #     shares_n_utt.add_shape(
-        # #         dict(type="line", x0=d, y0=0, x1=d, y1=1, line=dict(color="RoyalBlue", width=1)),
-        # #         row=1, col=1)
-        # #     shares_n_utt.add_annotation(x=d, y=1, text=r, textangle=-90, showarrow=True,
-        # #                                 font=dict(color="black", size=10), opacity=0.7, row=1,
-        # #                                 col=1)
+        for d, r in releases.values:
+            shares_n_utt_fig.add_shape(
+                dict(type="line", x0=d, y0=0, x1=d, y1=1, line=dict(color="RoyalBlue", width=1)),
+                row=1, col=1)
+            shares_n_utt_fig.add_annotation(x=d, y=1, text=r, textangle=-90, showarrow=True,
+                                        font=dict(color="black", size=10), opacity=0.7, row=1,
+                                        col=1)
         #
         shares_n_utt_fig.update_layout(height=500, width=1300, showlegend=True)
         shares_n_utt_fig['layout']['yaxis1']['range'] = [-0.05, 1.05]
@@ -1088,7 +1138,7 @@ class OverviewChartsView(BaseView):
 
     def plot_skills_ratings_ma_dialogs_with_gt_7_turns(self, skills_ratings, skill_names, releases):
         """
-        Skills Ratings, moving average over last 200 dialogs with number of turns > 7
+        Skills Ratings, moving average over last 100 dialogs with number of turns > 7
 
         :param skills_ratings:
         :param skill_names:
@@ -1123,7 +1173,7 @@ class OverviewChartsView(BaseView):
 
         now = dt.datetime.now(tz=tz.gettz('UTC'))
         end = now
-        start = end - dt.timedelta(days=35)
+        start = max(end - dt.timedelta(days=35), skills_ratings['date'].min())
 
         skills_ratings_by_range = skills_ratings[(skills_ratings['date'] <= end) & (skills_ratings['date'] >= start)][
                                   ::-1]
@@ -1222,7 +1272,8 @@ class OverviewChartsView(BaseView):
 
         now = dt.datetime.now(tz=tz.gettz('UTC'))
         end = now
-        start = end - dt.timedelta(days=35)
+        # start = end - dt.timedelta(days=35)
+        start = max(end - dt.timedelta(days=35), skills_ratings['date'].min())
 
         skills_ratings_by_range = skills_ratings[(skills_ratings['date'] <= end) & (skills_ratings['date'] >= start)][
                                   ::-1]
@@ -1290,60 +1341,6 @@ class OverviewChartsView(BaseView):
         # fig_moving_avg_d_total.show()
         return fig_moving_avg_d_total
 
-    def plot_dialog_finished_reason(self, dialog_finished_df):
-        """
-        Dialog finished reason, all
-        :return:
-        """
-        from plotly.subplots import make_subplots
-        import plotly.graph_objects as go
-        import datetime as dt
-
-        fig_dialog_finished_all_day = make_subplots(rows=1, cols=1,
-                                                    subplot_titles=('Dialog finished reason, all',))
-
-        now = dt.datetime.now(tz=tz.gettz('UTC'))
-        end = now
-        start = end - dt.timedelta(days=14)
-
-        x = dict()
-        value_v = dict()
-        value_c = dict()
-        finished_values = set(dialog_finished_df['alexa_command'].unique()) - {'no_alexa_command'}
-        finished_values |= {'no_command_no_goodbye', 'bot_goodbye'}
-        finished_values -= {'alexa handler: command logged'}
-        for n in finished_values:
-            value_v[n] = []
-            value_c[n] = []
-            x[n] = []
-
-        for dt in pd.date_range(start=start, end=end, freq='D'):
-            daily_data = dialog_finished_df[
-                (dialog_finished_df['date'] < dt) & (dialog_finished_df['date'] >= dt - dt.freq * 1)]
-            for v in finished_values:
-                if v.startswith('/'):
-                    v_count = (daily_data['alexa_command'] == v).sum()
-                    avg_n_turns = daily_data[daily_data['alexa_command'] == v]['n_turns'].mean()
-                else:
-                    v_count = daily_data[v].sum()
-                    avg_n_turns = daily_data[daily_data[v]]['n_turns'].mean()
-
-                if v_count > 0:
-                    value_v[v] += [v_count / len(daily_data)]
-                    value_c[v] += [[v_count, avg_n_turns]]
-                    x[v] += [dt]
-
-        for r in sorted(list(finished_values), reverse=True):
-            fig_dialog_finished_all_day.add_bar(name=r, x=x[r], y=value_v[r], customdata=value_c[r],
-                                                hovertemplate='%{y:.2f}: count: %{customdata[0]} n_turns:  %{customdata[1]:.2f}',
-                                                row=1, col=1)
-
-        fig_dialog_finished_all_day.update_layout(height=500, width=1300, showlegend=True)
-        fig_dialog_finished_all_day['layout']['yaxis1']['range'] = [0, 1]
-        fig_dialog_finished_all_day.update_layout(hovermode='x', barmode='stack')
-        # fig_dialog_finished_all_day.show()
-        return fig_dialog_finished_all_day
-
     def plot_dialog_finished_reasons_w_ratings(self, dialog_finished_df):
         """
         Dialog finished reason, with rating
@@ -1399,6 +1396,60 @@ class OverviewChartsView(BaseView):
         fig_dialog_finished_day.update_layout(hovermode='x', barmode='stack')
         # fig_dialog_finished_day.show()
         return fig_dialog_finished_day
+
+    def plot_dialog_finished_reason(self, dialog_finished_df):
+        """
+        Dialog finished reason, all
+        :return:
+        """
+        from plotly.subplots import make_subplots
+        import plotly.graph_objects as go
+        import datetime as dt
+
+        fig_dialog_finished_all_day = make_subplots(rows=1, cols=1,
+                                                    subplot_titles=('Dialog finished reason, all',))
+
+        now = dt.datetime.now(tz=tz.gettz('UTC'))
+        end = now
+        start = end - dt.timedelta(days=14)
+
+        x = dict()
+        value_v = dict()
+        value_c = dict()
+        finished_values = set(dialog_finished_df['alexa_command'].unique()) - {'no_alexa_command'}
+        finished_values |= {'no_command_no_goodbye', 'bot_goodbye'}
+        finished_values -= {'alexa handler: command logged'}
+        for n in finished_values:
+            value_v[n] = []
+            value_c[n] = []
+            x[n] = []
+
+        for dt in pd.date_range(start=start, end=end, freq='D'):
+            daily_data = dialog_finished_df[
+                (dialog_finished_df['date'] < dt) & (dialog_finished_df['date'] >= dt - dt.freq * 1)]
+            for v in finished_values:
+                if v.startswith('/'):
+                    v_count = (daily_data['alexa_command'] == v).sum()
+                    avg_n_turns = daily_data[daily_data['alexa_command'] == v]['n_turns'].mean()
+                else:
+                    v_count = daily_data[v].sum()
+                    avg_n_turns = daily_data[daily_data[v]]['n_turns'].mean()
+
+                if v_count > 0:
+                    value_v[v] += [v_count / len(daily_data)]
+                    value_c[v] += [[v_count, avg_n_turns]]
+                    x[v] += [dt]
+
+        for r in sorted(list(finished_values), reverse=True):
+            fig_dialog_finished_all_day.add_bar(name=r, x=x[r], y=value_v[r], customdata=value_c[r],
+                                                hovertemplate='%{y:.2f}: count: %{customdata[0]} n_turns:  %{customdata[1]:.2f}',
+                                                row=1, col=1)
+
+        fig_dialog_finished_all_day.update_layout(height=500, width=1300, showlegend=True)
+        fig_dialog_finished_all_day['layout']['yaxis1']['range'] = [0, 1]
+        fig_dialog_finished_all_day.update_layout(hovermode='x', barmode='stack')
+        # fig_dialog_finished_all_day.show()
+        return fig_dialog_finished_all_day
 
     def plot_last_skill_in_dialog_with_rating(self, dialog_finished_df, skill_names, releases):
         """
