@@ -82,7 +82,7 @@ class OverviewChartsView(BaseView):
 
 
     @expose('/')
-    @cache.cached(timeout=80400)
+    # @cache.cached(timeout=80400)
     def index(self):
         """
         Main page for analytical overview
@@ -95,8 +95,6 @@ class OverviewChartsView(BaseView):
 
         # retrieve all dialogs
         print("retrieve all dialogs...")
-        # dialogs = self.session.query(Conversation).order_by(Conversation.date_finish.desc())
-        # current_time = dt.datetime.utcnow()
         today = dt.date.today()
         weeks_ago = today - dt.timedelta(weeks=2)
         # weeks_ago = current_time - dt.timedelta(weeks=1)
@@ -105,23 +103,7 @@ class OverviewChartsView(BaseView):
         #     Conversation.date_finish.desc()).all()
         dialogs = self.session.query(Conversation).filter(Conversation.date_finish > weeks_ago).filter(Conversation.date_finish < today).order_by(
             Conversation.date_finish.desc()).all()
-            # Conversation.date_finish.desc()).options(subqueryload(Conversation.utterances))
         ############################################################
-
-        # # print(dialogs)
-        # print("all dialogs are retrieved. Preparing data for plotting...")
-        # # long op
-        # dialog_durations_df, skills_ratings_df = self.prepare_data_for_plotting(dialogs)
-        #
-        # print("skills_ratings_df")
-        # print(skills_ratings_df)
-        # print("dialog_durations_df")
-        # print(dialog_durations_df)
-        # print("prepare_dialog_finished_df...")
-        # # long op
-        # dialog_finished_df = self.prepare_dialog_finished_df(dialogs)
-
-        # TODO prepare data for number_of_dialogs_with_ratings_hrly wit dialogs start time and ratings
         print("calculate_skill_weights...")
 
         dialog_skills_weights_data = self.calculate_skill_weights(dialogs)
@@ -131,7 +113,10 @@ class OverviewChartsView(BaseView):
         ############################################################
         print("preparing all data for plotting...")
         dialog_durations_df, skills_ratings_df, dialog_finished_df, ratings_df = self.prepare_all_data(dialogs)
-
+        print("skills_ratings_df")
+        print(skills_ratings_df)
+        print("dialog_durations_df")
+        print(dialog_durations_df)
         # retrieve data for skill frequency chart
         # prepare plot for it
         print("ratings_df")
