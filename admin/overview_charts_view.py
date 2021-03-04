@@ -82,7 +82,7 @@ class OverviewChartsView(BaseView):
 
 
     @expose('/')
-    # @cache.cached(timeout=80400)
+    @cache.cached(timeout=80400)
     def index(self):
         """
         Main page for analytical overview
@@ -438,8 +438,13 @@ class OverviewChartsView(BaseView):
 
         import datetime as dt
         now = dt.datetime.now(tz=tz.gettz('UTC'))
+        # now = dt.datetime.now()
         end = now
-        start = end - dt.timedelta(days=50)
+        # start = end - dt.timedelta(days=50)
+        min_by_dialogs_dt = dialog_durations_df['date'].min().replace(tzinfo=tz.gettz('UTC'))
+        start = max(end - dt.timedelta(days=50), min_by_dialogs_dt)
+
+
         max_lens = [2, 4, 8, 12, 16, 24, 32, 48, 64]
         time_ = []
         n_utt = []
@@ -467,16 +472,17 @@ class OverviewChartsView(BaseView):
                                          marker={'size': 8}), row=2, col=1)
         ###################
         for d, r in releases.values:
-            dialog_time_fig.add_shape(
-                dict(type="line", x0=d, y0=0, x1=d, y1=200, line=dict(color="RoyalBlue", width=1)),
-                row=1, col=1)
-            dialog_time_fig.add_annotation(x=d, y=200, text=r, textangle=-90, showarrow=True,
-                                       font=dict(color="black", size=10), opacity=0.7, row=1, col=1)
-            dialog_time_fig.add_shape(
-                dict(type="line", x0=d, y0=10, x1=d, y1=35, line=dict(color="RoyalBlue", width=1)),
-                row=2, col=1)
-            dialog_time_fig.add_annotation(x=d, y=35, text=r, textangle=-90, showarrow=True,
-                                       font=dict(color="black", size=10), opacity=0.7, row=2, col=1)
+            if d > start:
+                dialog_time_fig.add_shape(
+                    dict(type="line", x0=d, y0=0, x1=d, y1=200, line=dict(color="RoyalBlue", width=1)),
+                    row=1, col=1)
+                dialog_time_fig.add_annotation(x=d, y=200, text=r, textangle=-90, showarrow=True,
+                                           font=dict(color="black", size=10), opacity=0.7, row=1, col=1)
+                dialog_time_fig.add_shape(
+                    dict(type="line", x0=d, y0=10, x1=d, y1=35, line=dict(color="RoyalBlue", width=1)),
+                    row=2, col=1)
+                dialog_time_fig.add_annotation(x=d, y=35, text=r, textangle=-90, showarrow=True,
+                                           font=dict(color="black", size=10), opacity=0.7, row=2, col=1)
 
         #############
         dialog_time_fig.update_layout(height=500, width=1300, showlegend=True)
@@ -496,12 +502,13 @@ class OverviewChartsView(BaseView):
                                               line={'dash': 'dot'}, marker={'size': 8}), row=1,
                                    col=1)
         for d, r in releases.values:
-            shares_n_utt_fig.add_shape(
-                dict(type="line", x0=d, y0=0, x1=d, y1=1, line=dict(color="RoyalBlue", width=1)),
-                row=1, col=1)
-            shares_n_utt_fig.add_annotation(x=d, y=1, text=r, textangle=-90, showarrow=True,
-                                        font=dict(color="black", size=10), opacity=0.7, row=1,
-                                        col=1)
+            if d > start:
+                shares_n_utt_fig.add_shape(
+                    dict(type="line", x0=d, y0=0, x1=d, y1=1, line=dict(color="RoyalBlue", width=1)),
+                    row=1, col=1)
+                shares_n_utt_fig.add_annotation(x=d, y=1, text=r, textangle=-90, showarrow=True,
+                                            font=dict(color="black", size=10), opacity=0.7, row=1,
+                                            col=1)
         #
         shares_n_utt_fig.update_layout(height=500, width=1300, showlegend=True)
         shares_n_utt_fig['layout']['yaxis1']['range'] = [-0.05, 1.05]
@@ -1451,7 +1458,9 @@ class OverviewChartsView(BaseView):
 
         now = dt.datetime.now(tz=tz.gettz('UTC'))
         end = now
-        start = end - dt.timedelta(days=31)
+        # start = end - dt.timedelta(days=31)
+        min_by_dialogs_dt = dialog_finished_df['date'].min().replace(tzinfo=tz.gettz('UTC'))
+        start = max(end - dt.timedelta(days=31), min_by_dialogs_dt)
 
         x = dict()
         value_v = dict()

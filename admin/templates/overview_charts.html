@@ -25,8 +25,8 @@
 
     <li><a href="#rating_by_n_turns_fig_div">Rating by n_turns for last days</a></li>
     <li><a href="#daily_counts_relative_fig_div">Skill was selected, relative</a></li>
-    <li><a href="#moving_avg_fig_div">Skills Ratings, moving average over last 200 dialogs with number of turns > 1</a></li>
-    <li><a href="#skill_ratings_total_ma_n_turns_gt_7_fig_div">Skills Ratings, -_total, moving average over last 200 dialogs with number of turns > 1</a></li>
+    <li><a href="#moving_avg_fig_div">Skills Ratings, moving average over last 100 dialogs with number of turns > 7</a></li>
+    <li><a href="#skill_ratings_total_ma_n_turns_gt_7_fig_div">Skills Ratings, -_total, moving average over last 100 dialogs with number of turns > 7</a></li>
     <!--<li>Skills Ratings, moving average over last 200 dialogs with number of turns <= 7</li>-->
     <!--<li>Skills Ratings, -_total, moving average over last 200 dialogs with number of turns <= 7</li>-->
     <li><a href="#dialog_finished_reason_fig_div">Dialog finished reason, all</a></li>
@@ -60,19 +60,17 @@
 
 <div id="shares_n_utt_div">{{shares_n_utt_div|safe }}</div>
 
-<div id="dialog_finished_reason_fig_div">{{dialog_finished_reason_fig_div|safe}}</div>
 
 <div id="dialog_finished_skill_rating_day_fig_div">{{dialog_finished_skill_rating_day_fig_div|safe}}</div>
 
 <div id="dialog_finished_reason_w_rats_fig_div">{{dialog_finished_reason_w_rats_fig_div|safe}}</div>
 
+<div id="dialog_finished_reason_fig_div">{{dialog_finished_reason_fig_div|safe}}</div>
 
 <!--<div>{{last_skill_stop_exit_info_fig_div|safe}}</div>-->
 
 
 <div id="last_skill_fig_div">{{last_skill_fig_div|safe }}</div>
-
-
 
 
 {% endblock %}
