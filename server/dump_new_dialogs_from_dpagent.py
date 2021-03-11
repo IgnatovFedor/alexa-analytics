@@ -67,9 +67,23 @@ class DPADumper():
             url_suffix = urllib.parse.urlencode(params)
             final_url = url_to_dialogs + "?" + url_suffix
 
-        print(f"requesting DP_Agent API: {final_url}...")
-        with urllib.request.urlopen(final_url, timeout=timeout) as url:
-            remote_data = json.loads(url.read().decode())
+
+        fails_counter = 0
+        remote_data = None
+        while not remote_data:
+            try:
+                logger.info(f"requesting DP_Agent API: {final_url}...")
+
+                with urllib.request.urlopen(final_url, timeout=timeout) as url:
+                    remote_data = json.loads(url.read().decode())
+            except Exception as e:
+                print(e)
+                fails_counter +=1
+                if fails_counter>=5:
+                    logger.info(f"Failed to get {final_url} after several attempts")
+                    raise e
+                import time
+                time.sleep(10)
 
         return remote_data
 
@@ -85,9 +99,24 @@ class DPADumper():
         # import ipdb; ipdb.set_trace()
 
         url_to_dialog = "%s/api/dialogs/%s" % (self.dpa_base_url, dp_dialog_id)
-        print(f"requesting DP_Agent API: {url_to_dialog}...")
-        with urllib.request.urlopen(url_to_dialog, timeout=timeout) as url:
-            remote_data = json.loads(url.read().decode())
+
+
+        fails_counter = 0
+        remote_data = None
+        while not remote_data:
+            try:
+                logger.info(f"Requesting DP_Agent API: {url_to_dialog}...")
+                with urllib.request.urlopen(url_to_dialog, timeout=timeout) as url:
+                    remote_data = json.loads(url.read().decode())
+                logger.info(f"Collected data for dialog: {url_to_dialog}.")
+            except Exception as e:
+                print(e)
+                fails_counter += 1
+                if fails_counter >= 5:
+                    logger.info(f"Failed to get {url_to_dialog} after several attempts")
+                    raise e
+                import time
+                time.sleep(10)
 
         return remote_data
 
@@ -111,7 +140,9 @@ def dump_new_dialogs(session, dpagent_base_url="http://0.0.0.0:4242"):
     # request dp_agent api for list of dialogs
     dpad = DPADumper(dpa_base_url=dpagent_base_url)
 
-    page_suffix = "?limit=100"
+    # page_suffix = "?limit=100"
+    page_suffix = "?limit=1000"
+    # page_suffix = "?limit=1000&offset=52000"
     # page_suffix = "?limit=5&_active=0"
     # page_suffix = "?limit=5&_active=1"
 
@@ -137,6 +168,16 @@ def dump_new_dialogs(session, dpagent_base_url="http://0.0.0.0:4242"):
                             logger.info(f"skipping actve and fresh dialog: {dialog_data['dialog_id']}")
                             continue
                         conv_id = dialog_data['dialog_id']
+                        logger.debug("Adding Conversation to DB...")
+
+                        # find amazon conv id:
+                        amazon_conv_id=None
+                        for utter in dialog_data['utterances']:
+                            if 'attributes' in utter:
+                                attrs = utter['attributes']
+                                if 'conversation_id' in attrs:
+                                    amazon_conv_id = attrs['conversation_id']
+                                    break
 
                         conv = Conversation(
                             id=conv_id,
@@ -147,7 +188,8 @@ def dump_new_dialogs(session, dpagent_base_url="http://0.0.0.0:4242"):
                             human=dialog_data['human'],
                             bot=dialog_data['bot'],
                             length=len(dialog_data['utterances']),
-                            raw_utterances=dialog_data['utterances']
+                            raw_utterances=dialog_data['utterances'],
+                            amazon_conv_id=amazon_conv_id
                         )
                         # ##########################
                         # find ratings
@@ -159,8 +201,9 @@ def dump_new_dialogs(session, dpagent_base_url="http://0.0.0.0:4242"):
                         # ##########################
                         session.add(conv)
                         session.commit()
-
+                        logger.debug("Added Conversation to DB. Adding utterances...")
                         for utt_idx, utterance in enumerate(dialog_data['utterances']):
+                            logger.debug(f"Adding utterance {utt_idx}")
                             utt = Utterance(text=utterance['text'],
                                             date_time=DBManager._parse_time(utterance['date_time']),
                                             active_skill=utterance.get('active_skill'),
@@ -205,13 +248,14 @@ def dump_new_dialogs(session, dpagent_base_url="http://0.0.0.0:4242"):
                                             other_attrs=other_attrs
                                         )
                                         session.add(hypo)
-                                        session.commit()
+                                        # session.commit()
                                     except Exception as e:
                                         logger.warning(e)
                                         # print(e)
                                         # import ipdb;
                                         # ipdb.set_trace()
                                         # print("Investigate")
+                                    session.commit()
 
                         logger.info(f'Successfully added a new conversation {conv_id} to local DB.')
                     except Exception as e:
