@@ -1,11 +1,13 @@
-import time
 from datetime import datetime, timedelta
 from logging import getLogger
+from time import sleep
 
 from pandas import DataFrame
 from sqlalchemy import create_engine, text
+from sqlalchemy.exc import OperationalError, StatementError
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
+from sqlalchemy.orm.query import Query
 from sqlalchemy.orm.session import Session
 
 from db.models import Base, Conversation, Utterance
@@ -14,10 +16,45 @@ log = getLogger(__name__)
 
 
 def get_session(user: str, password: str, host: str, dbname: str) -> Session:
+    class RetryingQuery(Query):
+        __max_retry_count__ = 3
+
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+
+        def __iter__(self):
+            attempts = 0
+            while True:
+                attempts += 1
+                try:
+                    return super().__iter__()
+                except OperationalError as ex:
+                    if "server closed the connection unexpectedly" not in str(ex):
+                        raise
+                    if attempts <= self.__max_retry_count__:
+                        sleep_for = 2 ** (attempts - 1)
+                        log.error(
+                            "/!\ Database connection error: retrying Strategy => sleeping for {}s"
+                            " and will retry (attempt #{} of {}) \n Detailed query impacted: {}".format(
+                                sleep_for, attempts, self.__max_retry_count__, ex)
+                        )
+                        sleep(sleep_for)
+                        continue
+                    else:
+                        raise
+                except StatementError as ex:
+                    if "reconnect until invalid transaction is rolled back" not in str(ex):
+                        raise
+                    self.session.rollback()
+
     db_uri = f'postgresql://{user}:{password}@{host}/{dbname}'
-    engine = create_engine(db_uri)
+    engine = create_engine(db_uri, pool_size=10,
+                                      max_overflow=2,
+                                      pool_recycle=300,
+                                      pool_pre_ping=True,
+                                      pool_use_lifo=True)
     Base.metadata.create_all(engine)
-    session_maker = sessionmaker(bind=engine)
+    session_maker = sessionmaker(bind=engine, query_cls=RetryingQuery)
     return session_maker()
 
 def drop_all_tables(session):
