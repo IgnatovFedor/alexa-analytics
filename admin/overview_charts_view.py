@@ -83,7 +83,6 @@ class OverviewChartsView(BaseView):
                               db_config['dbname'])
 
 
-
     @expose('/')
     @cache.cached(timeout=80400)
     def index(self):
@@ -106,7 +105,7 @@ class OverviewChartsView(BaseView):
         #     Conversation.date_finish.desc()).all()
         dialogs = self.session.query(Conversation).filter(Conversation.date_finish > weeks_ago).filter(Conversation.date_finish < today).order_by(
             Conversation.date_finish.desc()).all()
-        
+
         ############################################################
         logger.info("calculate_skill_weights...")
 
