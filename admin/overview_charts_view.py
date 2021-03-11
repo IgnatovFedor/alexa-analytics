@@ -9,6 +9,9 @@ from db.models import Conversation
 from admin.admin import cache
 from tqdm import tqdm
 import datetime as dt
+import logging
+logger = logging.getLogger(__name__)
+
 
 skill_names_map = {
      'meta_script_skill' : 'Activities Discussion',
@@ -55,7 +58,7 @@ skill_names_map = {
 def read_releases(path):
     """search file with releases and parses it to provide information about dates and releases.
 
-    https://raw.githubusercontent.com/dilyararimovna/dp-dream-alexa/feat/releases/releases.txt
+    https://github.com/dilyararimovna/dp-dream-alexa/blob/feat/releases/releases.txt
     """
     releases = pd.read_csv(path, sep=',')
     releases = releases.iloc[::-1]
@@ -88,13 +91,13 @@ class OverviewChartsView(BaseView):
         Main page for analytical overview
         :return:
         """
-        print("Retrieve releases data...")
+        logger.info("Retrieve releases data...")
         releases = read_releases("releases.txt")
-        print("releases")
-        print(releases)
+        logger.info("releases")
+        logger.info(releases)
 
         # retrieve all dialogs
-        print("retrieve all dialogs...")
+        logger.info("retrieve all dialogs...")
         today = dt.date.today()
         weeks_ago = today - dt.timedelta(weeks=2)
         # weeks_ago = current_time - dt.timedelta(weeks=1)
@@ -103,33 +106,34 @@ class OverviewChartsView(BaseView):
         #     Conversation.date_finish.desc()).all()
         dialogs = self.session.query(Conversation).filter(Conversation.date_finish > weeks_ago).filter(Conversation.date_finish < today).order_by(
             Conversation.date_finish.desc()).all()
+        
         ############################################################
-        print("calculate_skill_weights...")
+        logger.info("calculate_skill_weights...")
 
         dialog_skills_weights_data = self.calculate_skill_weights(dialogs)
-        print("dialog_skills_weights_data")
-        print(dialog_skills_weights_data)
+        logger.info("dialog_skills_weights_data")
+        logger.info(dialog_skills_weights_data)
         # ratings_df = self.prepare_data_for_ratings_plots(dialogs)
         ############################################################
-        print("preparing all data for plotting...")
+        logger.info("preparing all data for plotting...")
         dialog_durations_df, skills_ratings_df, dialog_finished_df, ratings_df = self.prepare_all_data(dialogs)
-        print("skills_ratings_df")
-        print(skills_ratings_df)
-        print("dialog_durations_df")
-        print(dialog_durations_df)
+        logger.info("skills_ratings_df")
+        logger.info(skills_ratings_df)
+        logger.info("dialog_durations_df")
+        logger.info(dialog_durations_df)
         # retrieve data for skill frequency chart
         # prepare plot for it
-        print("ratings_df")
-        print(ratings_df)
-        print("dialog_finished_df")
-        print(dialog_finished_df)
-        print("plot_number_of_dialogs_with_ratings_hrly...")
+        logger.info("ratings_df")
+        logger.info(ratings_df)
+        logger.info("dialog_finished_df")
+        logger.info(dialog_finished_df)
+        logger.info("plot_number_of_dialogs_with_ratings_hrly...")
         try:
             hrly_dialogs_ratings_fig = self.plot_number_of_dialogs_with_ratings_hrly(ratings_df)
             hrly_dialogs_ratings_fig_div = plot(hrly_dialogs_ratings_fig, output_type='div', include_plotlyjs=False)
         except Exception as e:
-            print("plot_number_of_dialogs_with_ratings_hrly failed to execute:")
-            print(e)
+            logger.info("plot_number_of_dialogs_with_ratings_hrly failed to execute:")
+            logger.info(e)
             hrly_dialogs_ratings_fig_div = ""
 
         # Skill Ratings by Releases
@@ -154,7 +158,7 @@ class OverviewChartsView(BaseView):
         version_ratings_fig_div = plot(version_ratings_fig, output_type='div',
                                                  include_plotlyjs=False)
         # prepare plot of it
-        print("plot_skills_durations...")
+        logger.info("plot_skills_durations...")
         dialog_time_fig, shares_n_utt_fig = self.plot_skills_durations(dialog_durations_df, releases)
         dialog_time_fig_div = plot(dialog_time_fig, output_type='div', include_plotlyjs=False)
         shares_n_utt_div = plot(shares_n_utt_fig, output_type='div', include_plotlyjs=False)
@@ -174,7 +178,7 @@ class OverviewChartsView(BaseView):
         skill_names = list(set(skills_ratings_df["active_skill"].values))
         ########################
         # Last skill in dialog, all
-        print("plot_last_skill_in_dialog...")
+        logger.info("plot_last_skill_in_dialog...")
         last_skill_fig = self.plot_last_skill_in_dialog(dialog_finished_df, skill_names)
         last_skill_fig_div = plot(last_skill_fig, output_type='div', include_plotlyjs=False)
         # return render_template('overview_charts.html', name=name)
@@ -182,7 +186,7 @@ class OverviewChartsView(BaseView):
 
         # ######################################
         # Ratings, hist
-        print("plot_ratings_hists...")
+        logger.info("plot_ratings_hists...")
         rating_hists_fig = self.plot_ratings_hists(skills_ratings_df)
         rating_hists_fig_div = plot(rating_hists_fig, output_type='div', include_plotlyjs=False)
         context_dict["rating_hists_fig_div"] = rating_hists_fig_div
@@ -193,46 +197,48 @@ class OverviewChartsView(BaseView):
 
         # ######################################
         # Rating by n_turns for last 7 days
-        print("plot_rating_by_turns...")
-        rating_by_n_turns_fig = self.plot_rating_by_turns(skills_ratings_df)
-        rating_by_n_turns_fig_div = plot(rating_by_n_turns_fig, output_type='div', include_plotlyjs=False)
-        context_dict["rating_by_n_turns_fig_div"] = rating_by_n_turns_fig_div
-
+        logger.info("plot_rating_by_turns...")
+        try:
+            rating_by_n_turns_fig = self.plot_rating_by_turns(skills_ratings_df)
+            rating_by_n_turns_fig_div = plot(rating_by_n_turns_fig, output_type='div', include_plotlyjs=False)
+            context_dict["rating_by_n_turns_fig_div"] = rating_by_n_turns_fig_div
+        except Exception as e:
+            pass
         # ######################################
         # Skill was selected, relative
-        print("plot_skill_was_selected_relative...")
+        logger.info("plot_skill_was_selected_relative...")
         daily_counts_relative_fig = self.plot_skill_was_selected_relative(skills_ratings_df, skill_names, releases)
         daily_counts_relative_fig_div = plot(daily_counts_relative_fig, output_type='div', include_plotlyjs=False)
         context_dict["daily_counts_relative_fig_div"] = daily_counts_relative_fig_div
 
         #
-        print("plot_skills_ratings_ma_dialogs_with_gt_7_turns...")
+        logger.info("plot_skills_ratings_ma_dialogs_with_gt_7_turns...")
         moving_avg_fig = self.plot_skills_ratings_ma_dialogs_with_gt_7_turns(skills_ratings_df, skill_names, releases)
         moving_avg_fig_div = plot(moving_avg_fig, output_type='div', include_plotlyjs=False)
         context_dict["moving_avg_fig_div"] = moving_avg_fig_div
 
-        print("plot_skill_ratings_total_ma_n_turns_gt_7...")
+        logger.info("plot_skill_ratings_total_ma_n_turns_gt_7...")
         skill_ratings_total_ma_n_turns_gt_7_fig = self.plot_skill_ratings_total_ma_n_turns_gt_7(skills_ratings_df, releases)
         skill_ratings_total_ma_n_turns_gt_7_fig_div = plot(skill_ratings_total_ma_n_turns_gt_7_fig, output_type='div',
                                                            include_plotlyjs=False)
         context_dict["skill_ratings_total_ma_n_turns_gt_7_fig_div"] = skill_ratings_total_ma_n_turns_gt_7_fig_div
 
         #
-        print("plot_dialog_finished_reason...")
+        logger.info("plot_dialog_finished_reason...")
         dialog_finished_reason_fig = self.plot_dialog_finished_reason(dialog_finished_df)
         dialog_finished_reason_fig_div = plot(dialog_finished_reason_fig, output_type='div',
                                               include_plotlyjs=False)
         context_dict["dialog_finished_reason_fig_div"] = dialog_finished_reason_fig_div
 
         # ####
-        print("plot_dialog_finished_reasons_w_ratings...")
+        logger.info("plot_dialog_finished_reasons_w_ratings...")
         dialog_finished_reason_w_rats_fig = self.plot_dialog_finished_reasons_w_ratings(dialog_finished_df)
         dialog_finished_reason_w_rats_fig_div = plot(dialog_finished_reason_w_rats_fig, output_type='div',
                                                      include_plotlyjs=False)
         context_dict["dialog_finished_reason_w_rats_fig_div"] = dialog_finished_reason_w_rats_fig_div
 
         #
-        print("plot_last_skill_in_dialog_with_rating...")
+        logger.info("plot_last_skill_in_dialog_with_rating...")
         dialog_finished_skill_rating_day_fig = self.plot_last_skill_in_dialog_with_rating(dialog_finished_df,
                                                                                           skill_names, releases)
         dialog_finished_skill_rating_day_fig_div = plot(dialog_finished_skill_rating_day_fig, output_type='div',
@@ -240,12 +246,12 @@ class OverviewChartsView(BaseView):
         context_dict["dialog_finished_skill_rating_day_fig_div"] = dialog_finished_skill_rating_day_fig_div
 
         # ##
-        print("plot_last_skill_stop_exit...")
+        logger.info("plot_last_skill_stop_exit...")
         last_skill_stop_exit_info_fig = self.plot_last_skill_stop_exit(dialog_finished_df, skill_names)
         last_skill_stop_exit_info_fig_div = plot(last_skill_stop_exit_info_fig, output_type='div',
                                                  include_plotlyjs=False)
         context_dict["last_skill_stop_exit_info_fig_div"] = last_skill_stop_exit_info_fig_div
-        print("render!")
+        logger.info("render!")
         return self.render('overview_charts.html', **context_dict)
 
     def prepare_all_data(self, dialogs):
@@ -260,17 +266,38 @@ class OverviewChartsView(BaseView):
         dialog_durations = []
         def get_last_skill(dialog, exit_intent=False):
             try:
-                if exit_intent and len(dialog.raw_utterances) >= 3 and 'active_skill' in dialog.raw_utterances[-3]:
-                    return dialog.raw_utterances[-3]['active_skill']
-                return dialog.raw_utterances[-1]['active_skill']
-            except Exception as e:
-                print(e)
-                # print("dialog.raw_utterances:")
-                # print(dialog.raw_utterances)
-                print("Exception")
-                print(e)
-                return "UnrecognizedSkill"
 
+                last_skill = None
+                if exit_intent and len(dialog.raw_utterances) >= 3 and 'active_skill' in dialog.raw_utterances[-3]:
+                    last_skill = dialog.raw_utterances[-3]['active_skill']
+                else:
+                    if 'active_skill' in dialog.raw_utterances[-1]:
+                        last_skill = dialog.raw_utterances[-1]['active_skill']
+                    else:
+                        for utt in reversed(dialog.raw_utterances):
+                            if 'active_skill' in utt:
+                                last_skill = utt['active_skill']
+                                break
+
+                if last_skill == "alexa_handler":
+                    # special case: we need to find a skill before triggering /alexa command
+                    command_is_found = False
+                    for utt in reversed(dialog.raw_utterances):
+                        if "/alexa" in utt['text']:
+                            command_is_found = True
+                            continue
+                        if command_is_found and 'active_skill' in utt:
+                            last_skill = utt['active_skill']
+                            break
+
+            except Exception as e:
+                logger.info(e)
+                # logger.info("dialog.raw_utterances:")
+                # logger.info(dialog.raw_utterances)
+                logger.info("Exception")
+                logger.info(e)
+                return "UnrecognizedSkill"
+            return last_skill
         dialog_finished_data = []
 
         rating_data = []
@@ -291,8 +318,16 @@ class OverviewChartsView(BaseView):
             last_skill = None
 
             # if 'alexa_commands' in dialog:
-            #     alexa_command = dialog['alexa_commands'][0]['text']
-            #     last_skill = get_last_skill(dialog)
+            if '/alexa' in dialog.raw_utterances[-2]['text']:
+                # gotch command
+                alexa_command = dialog.raw_utterances[-2]['text']
+                last_skill = get_last_skill(dialog)
+            elif n_utt>3 and '/alexa' in dialog.raw_utterances[-3]['text']:
+                # but it may occur on -3 position like here:
+                # http://a1b4e1088651f439d9e82fce0c4533b4-501376769.us-east-1.elb.amazonaws.com:4242/api/dialogs/05bb76e7fda316863528f13526dc9895
+                # gotch command
+                alexa_command = dialog.raw_utterances[-3]['text']
+                last_skill = get_last_skill(dialog)
 
             # if '#+#exit' in dialog.raw_utterances[-1].text:
             if '#+#exit' in dialog.raw_utterances[-1]['text']:
@@ -308,7 +343,8 @@ class OverviewChartsView(BaseView):
 
             dialog_finished_data += [
                 [date, alexa_command, bot_respond_with_goodbye, no_command_no_goodbye, rating,
-                 has_rating, n_turns, last_skill, conv_id, None]]
+                 has_rating, n_turns, last_skill, conv_id, dialog.version]]
+                 # has_rating, n_turns, last_skill, conv_id, None]]
                  # has_rating, n_turns, last_skill, conv_id, dialog['version']]]
 
             if has_rating:
@@ -325,8 +361,9 @@ class OverviewChartsView(BaseView):
                 for utt in dialog.raw_utterances:
                     # if hasattr(utt, 'active_skill'):
                     if 'active_skill' in utt and utt['active_skill']:
-                        #         skills_ratings += [[date, utt.active_skill, rating, conv_id, dialog.version]]
-                        skills_ratings += [[date, utt['active_skill'], rating, conv_id, None]]
+                        # skills_ratings += [[date, utt.active_skill, rating, conv_id, dialog.version]]
+                        # skills_ratings += [[date, utt['active_skill'], rating, conv_id, None]]
+                        skills_ratings += [[date, utt['active_skill'], rating, conv_id, dialog.version]]
 
         ratings_df = pd.DataFrame(rating_data)
 
@@ -403,7 +440,7 @@ class OverviewChartsView(BaseView):
             to_add = {
                 'conv_id': conv_id,
                 'rating': r,
-                # 'version': v,
+                'version': dialog.version,
                 'date': date,
                 # 'n_turns': len(dialog['utterances']) // 2
                 'n_turns': len(dialog.raw_utterances) // 2
@@ -1010,8 +1047,8 @@ class OverviewChartsView(BaseView):
         start_date = pd.Timestamp(start_date)
         daily_ratings = skills_ratings[skills_ratings['date'] >= start_date]
         # import ipdb; ipdb.set_trace()
-        # print("daily_ratings")
-        # print(daily_ratings)
+        print("daily_ratings")
+        print(daily_ratings)
 
         count = daily_ratings.groupby(['n_turns', 'rating']).count()['date']
         print("count var:")
@@ -1635,251 +1672,3 @@ class OverviewChartsView(BaseView):
         fig.update_layout(hovermode='x')
         # fig.show()
         return fig
-
-    # def prepare_all_data(self, dialogs):
-    #     """
-    #     Uses Utterances from Table
-    #     - prepare_data_for_plotting
-    #     -prepare_dialog_finished_df
-    #     :param dialogs:
-    #     :return:
-    #     """
-    #     skills_ratings = []
-    #     dialog_durations = []
-    #     def get_last_skill(dialog, exit_intent=False):
-    #         if exit_intent and dialog.utterances.count() >= 3:
-    #             return dialog.utterances[-3].active_skill
-    #         return dialog.utterances[-1].active_skill
-    #
-    #     dialog_finished_data = []
-    #
-    #     rating_data = []
-    #     for dialog in tqdm(dialogs, desc="Analyzing conversations"):
-    #         if dialog.rating:
-    #             rating = float(dialog.rating)
-    #             has_rating = True
-    #         else:
-    #             rating = 'no_rating'
-    #             has_rating = False
-    #         date = dialog.date_start
-    #         alexa_command = 'no_alexa_command'
-    #         bot_respond_with_goodbye = False
-    #         # n_turns = len(dialog.utterances) // 2
-    #         n_utt = len(dialog.raw_utterances)
-    #         # n_utt = len(list(dialog.utterances))
-    #         n_turns = n_utt // 2
-    #         last_skill = None
-    #
-    #         # if 'alexa_commands' in dialog:
-    #         #     alexa_command = dialog['alexa_commands'][0]['text']
-    #         #     last_skill = get_last_skill(dialog)
-    #
-    #         if '#+#exit' in dialog.utterances[-1].text:
-    #             bot_respond_with_goodbye = True
-    #             last_skill = get_last_skill(dialog, exit_intent=True)
-    #
-    #         if last_skill is None:
-    #             last_skill = get_last_skill(dialog)
-    #
-    #         no_command_no_goodbye = (alexa_command == 'no_alexa_command') and not bot_respond_with_goodbye
-    #
-    #         conv_id = dialog.id
-    #
-    #         dialog_finished_data += [
-    #             [date, alexa_command, bot_respond_with_goodbye, no_command_no_goodbye, rating,
-    #              has_rating, n_turns, last_skill, conv_id, None]]
-    #              # has_rating, n_turns, last_skill, conv_id, dialog['version']]]
-    #
-    #         if has_rating:
-    #             if dialog.date_start:
-    #                 rating_data.append({
-    #                     'id': dialog.id,
-    #                     'rating': dialog.rating,
-    #                     'start_time': dialog.date_start
-    #                 })
-    #             time = (dialog.date_finish - dialog.date_start).seconds
-    #
-    #             dialog_durations += [[date, time, n_utt]]
-    #
-    #             for utt in dialog.utterances:
-    #                 # if hasattr(utt, 'active_skill'):
-    #                 if utt.active_skill:
-    #                     #         skills_ratings += [[date, utt.active_skill, rating, conv_id, dialog.version]]
-    #                     skills_ratings += [[date, utt.active_skill, rating, conv_id, None]]
-    #
-    #     ratings_df = pd.DataFrame(rating_data)
-    #
-    #     dialog_finished_df = pd.DataFrame(dialog_finished_data,
-    #                                       columns=['date', 'alexa_command', 'bot_goodbye',
-    #                                                'no_command_no_goodbye', 'rating', 'has_rating',
-    #                                                'n_turns', 'last_skill', 'conv_id', 'version'])
-    #     dialog_finished_df['date'] = pd.to_datetime(dialog_finished_df['date'], utc=True)
-    #
-    #     skills_ratings = pd.DataFrame(skills_ratings,
-    #                                   columns=['date', 'active_skill', 'rating', 'conv_id',
-    #                                            'version'])
-    #     skills_ratings['date'] = pd.to_datetime(skills_ratings['date'], utc=True)
-    #     #
-    #     n_turns = skills_ratings['conv_id'].value_counts().to_dict()
-    #     skills_ratings['n_turns'] = skills_ratings['conv_id'].apply(lambda x: n_turns[x])
-    #     # print("skills_ratings")
-    #     # print(skills_ratings)
-    #     # skills_ratings = skills_ratings[skills_ratings['n_turns'] > 1]
-    #
-    #     dialog_durations = pd.DataFrame(dialog_durations, columns=['date', 'time', 'n_utt'])
-    #     dialog_durations['date'] = pd.to_datetime(dialog_durations['date'], utc=True)
-    #
-    #     return dialog_durations, skills_ratings, dialog_finished_df, ratings_df
-
-
-    # # moved to prepare_all_data
-    # def prepare_data_for_plotting(self, dialogs):
-    #     skills_ratings = []
-    #     dialog_durations = []
-    #
-    #     for dialog in dialogs:
-    #         rating = dialog.rating
-    #         if rating == 'no_rating':
-    #             continue
-    #         conv_id = dialog.id
-    #         date = dialog.date_start
-    #         time = (dialog.date_finish - dialog.date_start).seconds
-    #         n_utt = len(list(dialog.utterances))
-    #         dialog_durations += [[date, time, n_utt]]
-    #
-    #         if dialog.rating:
-    #             for utt in dialog.utterances:
-    #                 # if hasattr(utt, 'active_skill'):
-    #                 if utt.active_skill:
-    #             #         skills_ratings += [[date, utt.active_skill, rating, conv_id, dialog.version]]
-    #                     skills_ratings += [[date, utt.active_skill, rating, conv_id, None]]
-    #     skills_ratings = pd.DataFrame(skills_ratings,
-    #                                   columns=['date', 'active_skill', 'rating', 'conv_id',
-    #                                            'version'])
-    #     skills_ratings['date'] = pd.to_datetime(skills_ratings['date'], utc=True)
-    #     #
-    #     n_turns = skills_ratings['conv_id'].value_counts().to_dict()
-    #     skills_ratings['n_turns'] = skills_ratings['conv_id'].apply(lambda x: n_turns[x])
-    #     # print("skills_ratings")
-    #     # print(skills_ratings)
-    #     # skills_ratings = skills_ratings[skills_ratings['n_turns'] > 1]
-    #
-    #     dialog_durations = pd.DataFrame(dialog_durations, columns=['date', 'time', 'n_utt'])
-    #     dialog_durations['date'] = pd.to_datetime(dialog_durations['date'], utc=True)
-    #
-    #     return dialog_durations, skills_ratings
-
-    # # moved to prepare_all_data
-    # def prepare_dialog_finished_df(self, dialogs):
-    #     def get_last_skill(dialog, exit_intent=False):
-    #         if exit_intent and dialog.utterances.count() >= 3:
-    #             return dialog.utterances[-3].active_skill
-    #         return dialog.utterances[-1].active_skill
-    #
-    #     dialog_finished_data = []
-    #     for dialog in dialogs:
-    #         # if dialog.utterances[-1]['spk'] == 'Human':
-    #         #     # just 2 dialogs in whole dump
-    #         #     continue
-    #
-    #
-    #         if dialog.rating:
-    #             rating = float(dialog.rating)
-    #             has_rating = True
-    #         else:
-    #             rating = 'no_rating'
-    #             has_rating = False
-    #         date = dialog.date_start
-    #         alexa_command = 'no_alexa_command'
-    #         bot_respond_with_goodbye = False
-    #         # n_turns = len(dialog.utterances) // 2
-    #         n_turns = dialog.utterances.count() // 2
-    #         last_skill = None
-    #
-    #         # if 'alexa_commands' in dialog:
-    #         #     alexa_command = dialog['alexa_commands'][0]['text']
-    #         #     last_skill = get_last_skill(dialog)
-    #
-    #         if '#+#exit' in dialog.utterances[-1].text:
-    #             bot_respond_with_goodbye = True
-    #             last_skill = get_last_skill(dialog, exit_intent=True)
-    #
-    #         if last_skill is None:
-    #             last_skill = get_last_skill(dialog)
-    #
-    #         no_command_no_goodbye = (alexa_command == 'no_alexa_command') and not bot_respond_with_goodbye
-    #
-    #         conv_id = dialog.id
-    #
-    #         dialog_finished_data += [
-    #             [date, alexa_command, bot_respond_with_goodbye, no_command_no_goodbye, rating,
-    #              has_rating, n_turns, last_skill, conv_id, None]]
-    #              # has_rating, n_turns, last_skill, conv_id, dialog['version']]]
-    #
-    #     dialog_finished_df = pd.DataFrame(dialog_finished_data,
-    #                                       columns=['date', 'alexa_command', 'bot_goodbye',
-    #                                                'no_command_no_goodbye', 'rating', 'has_rating',
-    #                                                'n_turns', 'last_skill', 'conv_id', 'version'])
-    #     dialog_finished_df['date'] = pd.to_datetime(dialog_finished_df['date'], utc=True)
-    #     return dialog_finished_df
-
-    # def make_skills_freqs_plot(self, skills_ratings_df, skill_names):
-    #     # dont work
-    #     """
-    #     Uses ratings
-    #     Skill was selected, relative, Last 24h chart
-    #     :return:
-    #     """
-    #     from plotly.subplots import make_subplots
-    #     import plotly.graph_objects as go
-    #
-    #     fig_daily_counts_relative = make_subplots(rows=1, cols=1, subplot_titles=(
-    #         'Skill was selected, relative, Last 24h',))
-    #
-    #     now = dt.datetime.now(tz=tz.gettz('UTC'))
-    #     end = now
-    #     start = end - dt.timedelta(days=14)
-    #
-    #     x = dict()
-    #     skill_c = dict()
-    #     skill_names = set(skill_names)
-    #     skill_z = dict()
-    #     for n in skill_names:
-    #         skill_c[n] = []
-    #         x[n] = []
-    #         skill_z[n] = []
-    #
-    #     for dt in pd.date_range(start=start, end=end, freq='D'):
-    #         daily_ratings = skills_ratings_df[
-    #             (skills_ratings_df['date'] < dt) & (skills_ratings_df['date'] >= dt - dt.freq * 1)]
-    #         for sn, c in daily_ratings.groupby('active_skill')['rating'].count().items():
-    #             if sn in skill_names:
-    #                 skill_c[sn] += [c / len(daily_ratings)]
-    #                 x[sn] += [dt]
-    #                 skill_z[sn] += [c]
-    #
-    #     min_x, max_x = 1e10, 0
-    #     for n in sorted(list(skill_names)):
-    #         if len(skill_c[n]) > 0:
-    #             fig_daily_counts_relative.add_trace(
-    #                 go.Scatter(x=x[n], y=skill_c[n], customdata=skill_z[n], name=n,
-    #                            line={'dash': 'dot'}, marker={'size': 8},
-    #                            hovertemplate='%{y:.3f}: count %{customdata}'),
-    #                 row=1, col=1)
-    #             min_x = min(min_x, min(skill_c[n]))
-    #             max_x = max(max_x, max(skill_c[n]))
-    #
-    #     # no releases data
-    #     # for d, r in releases.values:
-    #     #     if d > start:
-    #     #         fig_daily_counts_relative.add_shape(
-    #     #             dict(type="line", x0=d, y0=min_x, x1=d, y1=max_x,
-    #     #                  line=dict(color="RoyalBlue", width=1)), row=1, col=1)
-    #     #         fig_daily_counts_relative.add_annotation(x=d, y=max_x, text=r, textangle=-90,
-    #     #                                                  showarrow=True,
-    #     #                                                  font=dict(color="black", size=10),
-    #     #                                                  opacity=0.7, row=1, col=1)
-    #
-    #     fig_daily_counts_relative.update_layout(height=500, width=1300, showlegend=True)
-    #     fig_daily_counts_relative.update_layout(hovermode='x')
-    #     return fig_daily_counts_relative
