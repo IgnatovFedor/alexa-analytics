@@ -21,6 +21,7 @@ class Conversation(BaseModel):
     feedback = Column(UnicodeText, nullable=True)
     rating = Column(Float, nullable=True)
 
+    # amazon_conv_id = Column(VARCHAR(64), nullable=True, index=True)
     amazon_conv_id = Column(VARCHAR(64), nullable=True)
 
     utterances = relationship('Utterance', order_by='Utterance.date_time', back_populates='conversation',
@@ -31,3 +32,13 @@ class Conversation(BaseModel):
     def tg_id(self):
         # TODO rename property for more general case!
         return self.human['user_external_id']
+
+    @property
+    def version(self):
+        try:
+            version_string = self.raw_utterances[0]['attributes']['version']
+            # "version":"v10.0.11.3.8",
+            version = version_string.replace('v', '')
+        except Exception as e:
+            version = "0.0.0.0.1"
+        return version
