@@ -8,8 +8,8 @@
 </style>
 {% endblock %}
 {% block body %}
-<div><a href="https://7052.lnsigo.mipt.ru/autoindex/#/dp_agent_alexa_data/dialogs_dumps_txt">Dialogs hourly dumps</a>
-</div>
+<!--<div><a href="https://7052.lnsigo.mipt.ru/autoindex/#/dp_agent_alexa_data/dialogs_dumps_txt">Dialogs hourly dumps</a>-->
+<!--</div>-->
 <!--<div><a href="http://ec2-3-90-214-142.compute-1.amazonaws.com/admin/">Dialogs analysis tool</a></div>-->
 <!--<div><a href="https://7052.lnsigo.mipt.ru/ab_tests/ab_tests_main.html">A/B tests</a></div>-->
 <div><a href="https://7052.lnsigo.mipt.ru/alexaprize2020/ab_tests/ab_tests_main.html">A/B tests</a></div>
@@ -40,7 +40,8 @@
     <li><a href="#dialog_finished_reason_w_rats_fig_div">Dialog finished reason, with rating</a></li>
     
     <li><a href="#dialog_finished_skill_rating_day_fig_div">Last skill in dialog, with rating</a></li>
-<!--    <li>Last skill in dialog, "Alexa, stop", "Alexa, exit", "Alexa, quit", with rating, Last 24h</li>-->
+    <li><a href="#last_skill_stop_exit_info_fig_div">Last skill in dialog, "Alexa, stop", "Alexa, exit", "Alexa, quit", with rating, Last 24h</a></li>
+
 <!--    <li>Dialogs with returned users, daily</li>-->
 </ul>
 
@@ -77,7 +78,7 @@
 <div id="dialog_finished_skill_rating_day_fig_div">{{dialog_finished_skill_rating_day_fig_div|safe}}</div>
 
 
-<!--<div>{{last_skill_stop_exit_info_fig_div|safe}}</div>-->
+<div id="last_skill_stop_exit_info_fig_div">{{last_skill_stop_exit_info_fig_div|safe}}</div>
 
 
 <div id="last_skill_fig_div">{{last_skill_fig_div|safe }}</div>

@@ -84,7 +84,7 @@ class OverviewChartsView(BaseView):
 
 
     @expose('/')
-    # @cache.cached(timeout=80400)
+    @cache.cached(timeout=80400)
     def index(self):
         """
         Main page for analytical overview
@@ -182,6 +182,7 @@ class OverviewChartsView(BaseView):
             rating_by_n_turns_fig = self.plot_rating_by_turns(skills_ratings_df)
             rating_by_n_turns_fig_div = plot(rating_by_n_turns_fig, output_type='div', include_plotlyjs=False)
         except Exception as e:
+            print(e)
             rating_by_n_turns_fig_div = "No data - no chart!"
             pass
 
@@ -238,16 +239,6 @@ class OverviewChartsView(BaseView):
             "skill_ratings_total_ma_50_with_num_of_turns_lt_fig_div": skill_ratings_total_ma_50_with_num_of_turns_lt_fig_div,
         }
 
-
-
-
-
-        # ##########################################
-        # TODO ratings by version?
-
-
-
-
         #
         logger.info("plot_dialog_finished_reason...")
         dialog_finished_reason_fig = self.plot_dialog_finished_reason(dialog_finished_df)
@@ -272,7 +263,7 @@ class OverviewChartsView(BaseView):
 
         # ##
         logger.info("plot_last_skill_stop_exit...")
-        last_skill_stop_exit_info_fig = self.plot_last_skill_stop_exit(dialog_finished_df, skill_names)
+        last_skill_stop_exit_info_fig = self.plot_last_skill_stop_exit(dialog_finished_df, releases, skill_names)
         last_skill_stop_exit_info_fig_div = plot(last_skill_stop_exit_info_fig, output_type='div',
                                                  include_plotlyjs=False)
         context_dict["last_skill_stop_exit_info_fig_div"] = last_skill_stop_exit_info_fig_div
@@ -1757,7 +1748,8 @@ class OverviewChartsView(BaseView):
         # fig_dialog_finished_skill_day.show()
         return fig_dialog_finished_skill_day
 
-    def plot_last_skill_stop_exit(self, dialog_finished_df, skill_names):
+
+    def plot_last_skill_stop_exit(self, dialog_finished_df, releases, skill_names):
         """
         Last skill in dialog, "Alexa, stop", "Alexa, exit", "Alexa, quit", with rating, Last 24h
         :return:
@@ -1771,7 +1763,8 @@ class OverviewChartsView(BaseView):
 
         now = dt.datetime.now(tz=tz.gettz('UTC'))
         end = now
-        start = end - dt.timedelta(days=31)
+        # start = end - timedelta(days=14)
+        start = max(end - dt.timedelta(days=14), dialog_finished_df['date'].min())
 
         x = dict()
         value_v = dict()
@@ -1797,7 +1790,7 @@ class OverviewChartsView(BaseView):
                     x[sn] += [dt]
 
         min_v, max_v = 10 ** 10, - 10 ** 10
-        for sn in sorted(list(skill_names)):
+        for sn in sorted(list(skill_names), key=str.lower):
             if len(value_v[sn]) > 0:
                 fig_dialog_finished_stop_skill_day.add_scatter(name=sn, x=x[sn], y=value_v[sn], customdata=value_c[sn],
                                                                line={'dash': 'dot'},
@@ -1806,19 +1799,18 @@ class OverviewChartsView(BaseView):
                 min_v = min(min_v, min(value_v[sn]))
                 max_v = max(max_v, max(value_v[sn]))
 
-        # for d, r in releases.values:
-        #     if d > start:
-        #         fig_dialog_finished_stop_skill_day.add_shape(
-        #             dict(type="line", x0=d, y0=min_v, x1=d, y1=max_v, line=dict(color="RoyalBlue", width=1)), row=1,
-        #             col=1)
-        #         fig_dialog_finished_stop_skill_day.add_annotation(x=d, y=max_v, text=r, textangle=-90, showarrow=True,
-        #                                                           font=dict(color="black", size=10), opacity=0.7, row=1,
-        #                                                           col=1)
+        for d, r in releases.values:
+            if d > start:
+                fig_dialog_finished_stop_skill_day.add_shape(
+                    dict(type="line", x0=d, y0=min_v, x1=d, y1=max_v, line=dict(color="RoyalBlue", width=1)), row=1,
+                    col=1)
+                fig_dialog_finished_stop_skill_day.add_annotation(x=d, y=max_v, text=r, textangle=-90, showarrow=True,
+                                                                  font=dict(color="black", size=10), opacity=0.7, row=1,
+                                                                  col=1)
 
         fig_dialog_finished_stop_skill_day.update_layout(height=500, width=1300, showlegend=True)
         # fig_dialog_finished_skill_day['layout']['yaxis1']['range'] = [0, 0.5]
         fig_dialog_finished_stop_skill_day.update_layout(hovermode='x')
-        # fig_dialog_finished_stop_skill_day.show()
         return fig_dialog_finished_stop_skill_day
 
 
