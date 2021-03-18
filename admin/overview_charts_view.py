@@ -84,7 +84,7 @@ class OverviewChartsView(BaseView):
 
 
     @expose('/')
-    @cache.cached(timeout=80400)
+    # @cache.cached(timeout=80400)
     def index(self):
         """
         Main page for analytical overview
@@ -162,6 +162,62 @@ class OverviewChartsView(BaseView):
         dialog_time_fig_div = plot(dialog_time_fig, output_type='div', include_plotlyjs=False)
         shares_n_utt_div = plot(shares_n_utt_fig, output_type='div', include_plotlyjs=False)
 
+        skill_names = list(set(skills_ratings_df["active_skill"].values))
+        ########################
+        # Last skill in dialog, all
+        logger.info("plot_last_skill_in_dialog...")
+        last_skill_fig = self.plot_last_skill_in_dialog(dialog_finished_df, skill_names)
+        last_skill_fig_div = plot(last_skill_fig, output_type='div', include_plotlyjs=False)
+        # ######################################
+
+        # Ratings, hist
+        logger.info("plot_ratings_hists...")
+        rating_hists_fig = self.plot_ratings_hists(skills_ratings_df)
+        rating_hists_fig_div = plot(rating_hists_fig, output_type='div', include_plotlyjs=False)
+
+        # ######################################
+        # Rating by n_turns for last 7 days
+        logger.info("plot_rating_by_turns...")
+        try:
+            rating_by_n_turns_fig = self.plot_rating_by_turns(skills_ratings_df)
+            rating_by_n_turns_fig_div = plot(rating_by_n_turns_fig, output_type='div', include_plotlyjs=False)
+        except Exception as e:
+            rating_by_n_turns_fig_div = "No data - no chart!"
+            pass
+
+        # ######################################
+        # Skill was selected, relative
+        logger.info("plot_skill_was_selected_relative...")
+        daily_counts_relative_fig = self.plot_skill_was_selected_relative(skills_ratings_df, skill_names, releases)
+        daily_counts_relative_fig_div = plot(daily_counts_relative_fig, output_type='div', include_plotlyjs=False)
+
+        #
+        logger.info("plot_skills_ratings_ma_dialogs_with_gt_7_turns...")
+        moving_avg_fig = self.plot_skills_ratings_ma_dialogs_with_gt_7_turns(skills_ratings_df, skill_names,
+                                                                             releases)
+        moving_avg_fig_div = plot(moving_avg_fig, output_type='div', include_plotlyjs=False)
+
+        #####################################
+        logger.info("plot_skill_ratings_total_ma_n_turns_gt_7...")
+        skill_ratings_total_ma_n_turns_gt_7_fig = self.plot_skill_ratings_total_ma_n_turns_gt_7(skills_ratings_df,
+                                                                                                releases)
+        skill_ratings_total_ma_n_turns_gt_7_fig_div = plot(skill_ratings_total_ma_n_turns_gt_7_fig,
+                                                           output_type='div',
+                                                           include_plotlyjs=False)
+
+        #################################
+        skill_ratings_ma_50_with_num_of_turns_leq_fig = self.skill_ratings_ma_50_with_num_of_turns_leq(skills_ratings_df,
+                                                                                                  releases, skill_names)
+        skill_ratings_ma_50_with_num_of_turns_leq_fig_div = plot(skill_ratings_ma_50_with_num_of_turns_leq_fig,
+                                                                 output_type='div',
+                                                                 include_plotlyjs=False)
+
+        skill_ratings_total_ma_50_with_num_of_turns_lt_fig = self.skill_ratings_total_ma_50_with_num_of_turns_lt(skills_ratings_df, releases)
+        skill_ratings_total_ma_50_with_num_of_turns_lt_fig_div = plot(skill_ratings_total_ma_50_with_num_of_turns_lt_fig,
+                                                                 output_type='div',
+                                                                 include_plotlyjs=False)
+
+
         context_dict = {
             # "plot_title": "Duration analysis",
             "dialog_time_figure_div": dialog_time_fig_div,
@@ -172,55 +228,25 @@ class OverviewChartsView(BaseView):
             "versions_ratings_ema_more_fig_div": versions_ratings_ema_more_fig_div,
             "versions_ratings_ema_less_fig_div": versions_ratings_ema_less_fig_div,
             "version_ratings_fig_div": version_ratings_fig_div,
+            "last_skill_fig_div": last_skill_fig_div,
+            "rating_hists_fig_div": rating_hists_fig_div,
+            "rating_by_n_turns_fig_div": rating_by_n_turns_fig_div,
+            "daily_counts_relative_fig_div": daily_counts_relative_fig_div,
+            "moving_avg_fig_div": moving_avg_fig_div,
+            "skill_ratings_total_ma_n_turns_gt_7_fig_div": skill_ratings_total_ma_n_turns_gt_7_fig_div,
+            "skill_ratings_ma_50_with_num_of_turns_leq_fig_div": skill_ratings_ma_50_with_num_of_turns_leq_fig_div,
+            "skill_ratings_total_ma_50_with_num_of_turns_lt_fig_div": skill_ratings_total_ma_50_with_num_of_turns_lt_fig_div,
         }
 
-        skill_names = list(set(skills_ratings_df["active_skill"].values))
-        ########################
-        # Last skill in dialog, all
-        logger.info("plot_last_skill_in_dialog...")
-        last_skill_fig = self.plot_last_skill_in_dialog(dialog_finished_df, skill_names)
-        last_skill_fig_div = plot(last_skill_fig, output_type='div', include_plotlyjs=False)
-        # return render_template('overview_charts.html', name=name)
-        context_dict["last_skill_fig_div"] = last_skill_fig_div
 
-        # ######################################
-        # Ratings, hist
-        logger.info("plot_ratings_hists...")
-        rating_hists_fig = self.plot_ratings_hists(skills_ratings_df)
-        rating_hists_fig_div = plot(rating_hists_fig, output_type='div', include_plotlyjs=False)
-        context_dict["rating_hists_fig_div"] = rating_hists_fig_div
+
 
 
         # ##########################################
         # TODO ratings by version?
 
-        # ######################################
-        # Rating by n_turns for last 7 days
-        logger.info("plot_rating_by_turns...")
-        try:
-            rating_by_n_turns_fig = self.plot_rating_by_turns(skills_ratings_df)
-            rating_by_n_turns_fig_div = plot(rating_by_n_turns_fig, output_type='div', include_plotlyjs=False)
-            context_dict["rating_by_n_turns_fig_div"] = rating_by_n_turns_fig_div
-        except Exception as e:
-            pass
-        # ######################################
-        # Skill was selected, relative
-        logger.info("plot_skill_was_selected_relative...")
-        daily_counts_relative_fig = self.plot_skill_was_selected_relative(skills_ratings_df, skill_names, releases)
-        daily_counts_relative_fig_div = plot(daily_counts_relative_fig, output_type='div', include_plotlyjs=False)
-        context_dict["daily_counts_relative_fig_div"] = daily_counts_relative_fig_div
 
-        #
-        logger.info("plot_skills_ratings_ma_dialogs_with_gt_7_turns...")
-        moving_avg_fig = self.plot_skills_ratings_ma_dialogs_with_gt_7_turns(skills_ratings_df, skill_names, releases)
-        moving_avg_fig_div = plot(moving_avg_fig, output_type='div', include_plotlyjs=False)
-        context_dict["moving_avg_fig_div"] = moving_avg_fig_div
 
-        logger.info("plot_skill_ratings_total_ma_n_turns_gt_7...")
-        skill_ratings_total_ma_n_turns_gt_7_fig = self.plot_skill_ratings_total_ma_n_turns_gt_7(skills_ratings_df, releases)
-        skill_ratings_total_ma_n_turns_gt_7_fig_div = plot(skill_ratings_total_ma_n_turns_gt_7_fig, output_type='div',
-                                                           include_plotlyjs=False)
-        context_dict["skill_ratings_total_ma_n_turns_gt_7_fig_div"] = skill_ratings_total_ma_n_turns_gt_7_fig_div
 
         #
         logger.info("plot_dialog_finished_reason...")
@@ -1368,6 +1394,193 @@ class OverviewChartsView(BaseView):
         fig_moving_avg_d_total['layout']['yaxis1']['range'] = [min_r, max_r]
         # fig_moving_avg_d_total.show()
         return fig_moving_avg_d_total
+
+    def skill_ratings_ma_50_with_num_of_turns_leq(self, skills_ratings, releases, skill_names):
+        """
+        Skills Ratings, -_total, moving average over last 50 dialogs with number of turns <= 7
+        :return:
+        """
+        from tqdm import tqdm as tqdm
+        from plotly.subplots import make_subplots
+        import plotly.graph_objects as go
+        import datetime as dt
+
+        avg_n_dialogs = 50
+        n_turns = 7
+
+        fig_moving_avg_less = make_subplots(rows=1, cols=1, subplot_titles=(
+        f'Skills Ratings, moving average over last {avg_n_dialogs} dialogs with number of turns <= {n_turns}',))
+
+        x = dict()
+        skill_c = dict()
+        skill_r = dict()
+        skill_names = set(skill_names)
+        for n in skill_names:
+            skill_c[n] = []
+            skill_r[n] = []
+            x[n] = []
+        skill_c['_total'] = []
+        skill_r['_total'] = []
+        x['_total'] = []
+
+        now = dt.datetime.now(tz=tz.gettz('UTC'))
+        end = now
+        # start = end - dt.timedelta(days=35)
+        start = max(end - dt.timedelta(days=35), skills_ratings['date'].min())
+
+        skills_ratings_by_range = skills_ratings[(skills_ratings['date'] <= end) & (skills_ratings['date'] >= start)][
+                                  ::-1]
+        skills_ratings_by_range = skills_ratings_by_range[
+            (skills_ratings_by_range['n_turns'] <= n_turns) & (skills_ratings_by_range['n_turns'] > 1)]
+
+        min_r, max_r = 5, 0
+
+        sr_gb = skills_ratings_by_range.groupby('conv_id', sort=False)
+        d = sr_gb.first()
+        dates_by_id = d['date'].to_dict()
+        d['cnt'] = sr_gb['rating'].count()
+        d['r*cnt'] = d['cnt'] * d['rating']
+        s_count = d['cnt'].rolling(avg_n_dialogs).sum()
+        moving_avg = d['r*cnt'].rolling(avg_n_dialogs).sum() / s_count
+        for (i, v), (_, c) in zip(moving_avg.items(), s_count.items()):
+            date = dates_by_id[i]
+            if not pd.isna(v):
+                x['_total'] += [pd.to_datetime(date, utc=True)]
+                skill_r['_total'] += [v]
+                skill_c['_total'] += [c]
+
+        for sn in tqdm(list(skill_names)):
+            sr_gb = skills_ratings_by_range[skills_ratings_by_range['active_skill'] == sn].groupby('conv_id',
+                                                                                                   sort=False)
+            d = sr_gb.first()
+            dates_by_id = d['date'].to_dict()
+            d['cnt'] = sr_gb['rating'].count()
+            d['r*cnt'] = d['cnt'] * d['rating']
+            s_count = d['cnt'].rolling(avg_n_dialogs).sum()
+            moving_avg = d['r*cnt'].rolling(avg_n_dialogs).sum() / s_count
+            for (i, v), (_, c) in zip(moving_avg.items(), s_count.items()):
+                date = dates_by_id[i]
+                if not pd.isna(v):
+                    x[sn] += [pd.to_datetime(date, utc=True)]
+                    skill_r[sn] += [v]
+                    skill_c[sn] += [c]
+
+        for n in sorted(list(skill_names) + ['_total']):
+            if len(skill_r[n]) == 0:
+                continue
+            fig_moving_avg_less.add_trace(
+                go.Scatter(x=x[n], y=skill_r[n], name=n, line={'dash': 'dot'}, marker={'size': 8},
+                           customdata=skill_c[n], hovertemplate='%{y:.2f}: selected: %{customdata}', ), row=1, col=1)
+            min_r = min(min_r, min(skill_r[n]))
+            max_r = max(max_r, max(skill_r[n]))
+
+        for d, r in releases.values:
+            if d > start:
+                fig_moving_avg_less.add_shape(
+                    dict(type="line", x0=d, y0=min_r, x1=d, y1=max_r, line=dict(color="RoyalBlue", width=1)), row=1,
+                    col=1)
+                fig_moving_avg_less.add_annotation(x=d, y=max_r, text=r, textangle=-90, showarrow=True,
+                                                   font=dict(color="black", size=10), opacity=0.7, row=1, col=1)
+
+        fig_moving_avg_less.update_layout(height=500, width=1300, showlegend=True)
+        fig_moving_avg_less.update_layout(hovermode='x')
+        fig_moving_avg_less['layout']['yaxis1']['range'] = [min_r, max_r]
+        return fig_moving_avg_less
+
+    def skill_ratings_total_ma_50_with_num_of_turns_lt(self, skills_ratings, releases):
+        """
+        Skills Ratings, -_total, moving average over last 50 dialogs with number of turns <= 7
+
+        :param skills_ratings:
+        :param releases:
+        :return:
+        """
+        from tqdm import tqdm as tqdm
+        from plotly.subplots import make_subplots
+        import plotly.graph_objects as go
+        import datetime as dt
+        avg_n_dialogs = 50
+        n_turns = 7
+
+        fig_moving_avg_d_total_less = make_subplots(rows=1, cols=1, subplot_titles=(
+        f'Skills Ratings, -_total, moving average over last {avg_n_dialogs} dialogs with number of turns <= {n_turns}',))
+
+        x = dict()
+        skill_c = dict()
+        skill_r = dict()
+        skill_names = set(skills_ratings['active_skill'].unique()) - set(['no_skill_name'])
+        for n in skill_names:
+            skill_c[n] = []
+            skill_r[n] = []
+            x[n] = []
+        skill_c['_total'] = []
+        skill_r['_total'] = []
+        x['_total'] = []
+
+        now = dt.datetime.now(tz=tz.gettz('UTC'))
+        end = now
+        # start = end - dt.timedelta(days=35)
+        start = max(end - dt.timedelta(days=35), skills_ratings['date'].min())
+        skills_ratings_by_range = skills_ratings[(skills_ratings['date'] <= end) & (skills_ratings['date'] >= start)][
+                                  ::-1]
+        skills_ratings_by_range = skills_ratings_by_range[
+            (skills_ratings_by_range['n_turns'] <= n_turns) & (skills_ratings_by_range['n_turns'] > 1)]
+
+        min_r, max_r = 5, 0
+
+        sr_gb = skills_ratings_by_range.groupby('conv_id', sort=False)
+        d = sr_gb.first()
+        dates_by_id = d['date'].to_dict()
+        d['cnt'] = sr_gb['rating'].count()
+        d['r*cnt'] = d['cnt'] * d['rating']
+        s_count = d['cnt'].rolling(avg_n_dialogs).sum()
+        moving_avg = d['r*cnt'].rolling(avg_n_dialogs).sum() / s_count
+        total = dict()
+        for (i, v), (_, c) in zip(moving_avg.items(), s_count.items()):
+            date = dates_by_id[i]
+            if not pd.isna(v):
+                x['_total'] += [pd.to_datetime(date, utc=True)]
+                skill_r['_total'] += [v]
+                skill_c['_total'] += [c]
+                total[pd.to_datetime(date, utc=True)] = v
+
+        for sn in tqdm(list(skill_names)):
+            sr_gb = skills_ratings_by_range[skills_ratings_by_range['active_skill'] == sn].groupby('conv_id',
+                                                                                                   sort=False)
+            d = sr_gb.first()
+            dates_by_id = d['date'].to_dict()
+            d['cnt'] = sr_gb['rating'].count()
+            d['r*cnt'] = d['cnt'] * d['rating']
+            s_count = d['cnt'].rolling(avg_n_dialogs).sum()
+            moving_avg = d['r*cnt'].rolling(avg_n_dialogs).sum() / s_count
+            for (i, v), (_, c) in zip(moving_avg.items(), s_count.items()):
+                date = dates_by_id[i]
+                if not pd.isna(v):
+                    x[sn] += [pd.to_datetime(date, utc=True)]
+                    skill_r[sn] += [v - total[pd.to_datetime(date, utc=True)]]
+                    skill_c[sn] += [c]
+
+        for n in sorted(list(skill_names), key=str.lower):
+            if len(skill_r[n]) == 0:
+                continue
+            fig_moving_avg_d_total_less.add_trace(
+                go.Scatter(x=x[n], y=skill_r[n], name=n, line={'dash': 'dot'}, marker={'size': 8},
+                           customdata=skill_c[n], hovertemplate='%{y:.2f}: selected: %{customdata}', ), row=1, col=1)
+            min_r = min(min_r, min(skill_r[n]))
+            max_r = max(max_r, max(skill_r[n]))
+
+        for d, r in releases.values:
+            if d > start:
+                fig_moving_avg_d_total_less.add_shape(
+                    dict(type="line", x0=d, y0=min_r, x1=d, y1=max_r, line=dict(color="RoyalBlue", width=1)), row=1,
+                    col=1)
+                fig_moving_avg_d_total_less.add_annotation(x=d, y=max_r, text=r, textangle=-90, showarrow=True,
+                                                           font=dict(color="black", size=10), opacity=0.7, row=1, col=1)
+
+        fig_moving_avg_d_total_less.update_layout(height=500, width=1300, showlegend=True)
+        fig_moving_avg_d_total_less.update_layout(hovermode='x')
+        fig_moving_avg_d_total_less['layout']['yaxis1']['range'] = [min_r, max_r]
+        return fig_moving_avg_d_total_less
 
     def plot_dialog_finished_reasons_w_ratings(self, dialog_finished_df):
         """
