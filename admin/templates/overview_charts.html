@@ -10,9 +10,11 @@
 {% block body %}
 <div><a href="https://7052.lnsigo.mipt.ru/autoindex/#/dp_agent_alexa_data/dialogs_dumps_txt">Dialogs hourly dumps</a>
 </div>
-<div><a href="http://ec2-3-90-214-142.compute-1.amazonaws.com/admin/">Dialogs analysis tool</a></div>
-<div><a href="https://7052.lnsigo.mipt.ru/ab_tests/ab_tests_main.html">A/B tests</a></div>
-<div><a href="http://192.168.10.54:1337/link_to_plot">link_to plots</a></div>
+<!--<div><a href="http://ec2-3-90-214-142.compute-1.amazonaws.com/admin/">Dialogs analysis tool</a></div>-->
+<!--<div><a href="https://7052.lnsigo.mipt.ru/ab_tests/ab_tests_main.html">A/B tests</a></div>-->
+<div><a href="https://7052.lnsigo.mipt.ru/alexaprize2020/ab_tests/ab_tests_main.html">A/B tests</a></div>
+
+<!--<div><a href="http://192.168.10.54:1337/link_to_plot">link_to plots</a></div>-->
 <br/>Plots:
 <ul>
     <li><a href="#hrly_dialogs_ratings_fig_div">Number of dialogs with ratings, hourly</a></li>
@@ -60,17 +62,20 @@
 <div id="moving_avg_fig_div">{{moving_avg_fig_div|safe}}</div>
 
 <div id="skill_ratings_total_ma_n_turns_gt_7_fig_div">{{skill_ratings_total_ma_n_turns_gt_7_fig_div|safe}}</div>
+<div id="skill_ratings_ma_50_with_num_of_turns_leq_fig_div">{{skill_ratings_ma_50_with_num_of_turns_leq_fig_div|safe}}</div>
+<div id="skill_ratings_total_ma_50_with_num_of_turns_lt_fig_div">{{skill_ratings_total_ma_50_with_num_of_turns_lt_fig_div|safe}}</div>
 
 <div id="dialog_time_figure_div">{{dialog_time_figure_div|safe }}</div>
 
 <div id="shares_n_utt_div">{{shares_n_utt_div|safe }}</div>
 
 
-<div id="dialog_finished_skill_rating_day_fig_div">{{dialog_finished_skill_rating_day_fig_div|safe}}</div>
-
 <div id="dialog_finished_reason_w_rats_fig_div">{{dialog_finished_reason_w_rats_fig_div|safe}}</div>
 
 <div id="dialog_finished_reason_fig_div">{{dialog_finished_reason_fig_div|safe}}</div>
+
+<div id="dialog_finished_skill_rating_day_fig_div">{{dialog_finished_skill_rating_day_fig_div|safe}}</div>
+
 
 <!--<div>{{last_skill_stop_exit_info_fig_div|safe}}</div>-->
 
