@@ -157,19 +157,29 @@ class OverviewChartsView(BaseView):
         version_ratings_fig_div = plot(version_ratings_fig, output_type='div',
                                                  include_plotlyjs=False)
         # prepare plot of it
-        logger.info("plot_skills_durations...")
-        dialog_time_fig, shares_n_utt_fig = self.plot_skills_durations(dialog_durations_df, releases)
-        dialog_time_fig_div = plot(dialog_time_fig, output_type='div', include_plotlyjs=False)
-        shares_n_utt_div = plot(shares_n_utt_fig, output_type='div', include_plotlyjs=False)
+        try:
+            logger.info("plot_skills_durations...")
+            dialog_time_fig, shares_n_utt_fig = self.plot_skills_durations(dialog_durations_df, releases)
+            dialog_time_fig_div = plot(dialog_time_fig, output_type='div', include_plotlyjs=False)
+            shares_n_utt_div = plot(shares_n_utt_fig, output_type='div', include_plotlyjs=False)
+
+        except Exception as e:
+            logger.info("plot_skills_durations failed to execute:")
+            logger.info(e)
+            dialog_time_fig_div = ""
+            shares_n_utt_div = ""
 
         skill_names = list(set(skills_ratings_df["active_skill"].values))
         ########################
         # Last skill in dialog, all
-        logger.info("plot_last_skill_in_dialog...")
-        last_skill_fig = self.plot_last_skill_in_dialog(dialog_finished_df, skill_names)
-        last_skill_fig_div = plot(last_skill_fig, output_type='div', include_plotlyjs=False)
-        # ######################################
-
+        # logger.info("plot_last_skill_in_dialog...")
+        try:
+            last_skill_fig = self.plot_last_skill_in_dialog(dialog_finished_df, skill_names)
+            last_skill_fig_div = plot(last_skill_fig, output_type='div', include_plotlyjs=False)
+            ######################################
+        except Exception as e:
+            logger.info("plot_last_skill_in_dialog failed to execute:")
+            last_skill_fig_div = ""
         # Ratings, hist
         logger.info("plot_ratings_hists...")
         rating_hists_fig = self.plot_ratings_hists(skills_ratings_df)
@@ -1763,8 +1773,9 @@ class OverviewChartsView(BaseView):
 
         now = dt.datetime.now(tz=tz.gettz('UTC'))
         end = now
-        # start = end - timedelta(days=14)
-        start = max(end - dt.timedelta(days=14), dialog_finished_df['date'].min())
+        start = end - dt.timedelta(days=14)
+        # start = max(end - dt.timedelta(days=14), dialog_finished_df['date'].min())
+        # start = max(end - dt.timedelta(days=14), dialog_finished_df['date'].min())
 
         x = dict()
         value_v = dict()
@@ -1775,7 +1786,7 @@ class OverviewChartsView(BaseView):
             value_v[n] = []
             x[n] = []
 
-        for dt in pd.date_range(start=start, end=end, freq='12H'):
+        for dt in pd.date_range(start=start, end=end, freq='12H', tz=tz.gettz('UTC')):
             daily_data = dialog_finished_df[
                 (dialog_finished_df['date'] < dt) & (dialog_finished_df['date'] >= dt - dt.freq * 2)]
             daily_data = daily_data[(daily_data['has_rating'] == True) & (
