@@ -140,6 +140,16 @@ class OverviewChartsView(BaseView):
         ratings_by_releases_fig_div = plot(ratings_by_releases_fig, output_type='div', include_plotlyjs=False)
         # retrieve data for Dialog time(sec), Daily chart
 
+        sentiment_df = self.prepare_sentiment(dialogs)
+
+        # Positive sentiment by Releases
+        positive_sentiment_by_releases_fig = self.plot_sentiment_by_releases(sentiment_df, releases, 'positive')
+        positive_sentiment_by_releases_fig_div = plot(positive_sentiment_by_releases_fig, output_type='div', include_plotlyjs=False)
+
+        # Negative sentiment by Releases
+        negative_sentiment_by_releases_fig = self.plot_sentiment_by_releases(sentiment_df, releases, 'negative')
+        negative_sentiment_by_releases_fig_div = plot(negative_sentiment_by_releases_fig, output_type='div', include_plotlyjs=False)
+
         # Skill Ratings by Releases (EMA 0.5)
         ratings_by_releases_ema_05_fig = self.plot_ratings_by_releases_ema_05(skills_ratings_df, releases, dialog_skills_weights_data)
         ratings_by_releases_ema_05_fig_div = plot(ratings_by_releases_ema_05_fig, output_type='div', include_plotlyjs=False)
@@ -235,6 +245,8 @@ class OverviewChartsView(BaseView):
             "shares_n_utt_div": shares_n_utt_div,
             "hrly_dialogs_ratings_fig_div": hrly_dialogs_ratings_fig_div,
             "ratings_by_releases_fig_div": ratings_by_releases_fig_div,
+            "positive_sentiment_by_releases_fig_div": positive_sentiment_by_releases_fig_div,
+            "negative_sentiment_by_releases_fig_div": negative_sentiment_by_releases_fig_div,
             "ratings_by_releases_ema_05_fig_div": ratings_by_releases_ema_05_fig_div,
             "versions_ratings_ema_more_fig_div": versions_ratings_ema_more_fig_div,
             "versions_ratings_ema_less_fig_div": versions_ratings_ema_less_fig_div,
@@ -280,7 +292,8 @@ class OverviewChartsView(BaseView):
         logger.info("render!")
         return self.render('overview_charts.html', **context_dict)
 
-    def prepare_all_data(self, dialogs):
+    @staticmethod
+    def prepare_all_data(dialogs):
         """
         Uses utterances from attribute of Conversation
         - prepare_data_for_plotting
@@ -414,6 +427,161 @@ class OverviewChartsView(BaseView):
         dialog_durations['date'] = pd.to_datetime(dialog_durations['date'], utc=True)
 
         return dialog_durations, skills_ratings, dialog_finished_df, ratings_df
+
+    @staticmethod
+    def prepare_sentiment(dialogs):
+        def _probs_to_labels(answer_probs, threshold=0.5):
+            answer_labels = [label for label in answer_probs if answer_probs[label] > threshold]
+            if not answer_labels:
+                answer_labels = [key for key in answer_probs
+                                 if answer_probs[key] == max(answer_probs.values())]
+
+        def _process_text(answer):
+            if isinstance(answer, dict) and 'text' in answer:
+                return answer['text']
+            else:
+                return answer
+
+        def _process_old_sentiment(answer):
+            # Input: all sentiment annotations. Output: probs
+            if isinstance(answer[0], str) and isinstance(answer[1], float):
+                # support old sentiment output
+                curr_answer = {}
+                for key in combined_classes['sentiment_classification']:
+                    if key == answer[0]:
+                        curr_answer[key] = answer[1]
+                    else:
+                        curr_answer[key] = 0.5 * (1 - answer[1])
+                answer_probs = curr_answer
+                return answer_probs
+            else:
+                return answer
+
+        def _labels_to_probs(answer_labels, all_labels):
+            answer_probs = dict()
+            for label in all_labels:
+                if label in answer_labels:
+                    answer_probs[label] = 1
+                else:
+                    answer_probs[label] = 0
+            return answer_probs
+
+        combined_classes = {
+            'emotion_classification': ['anger', 'fear', 'joy', 'love', 'sadness', 'surprise', 'neutral'],
+            'toxic_classification': ['identity_hate', 'insult',
+                                     'obscene', 'severe_toxic',
+                                     'sexual_explicit', 'threat',
+                                     'toxic'],
+            'sentiment_classification': ['positive', 'negative', 'neutral'],
+            'cobot_topics': ['Phatic', 'Other', 'Movies_TV', 'Music', 'SciTech', 'Literature',
+                             'Travel_Geo', 'Celebrities', 'Games', 'Pets_Animals', 'Sports',
+                             'Psychology', 'Religion', 'Weather_Time', 'Food_Drink', 'Politics',
+                             'Sex_Profanity', 'Art_Event', 'Math', 'News', 'Entertainment', 'Fashion'],
+            'cobot_dialogact_topics': ['Other', 'Phatic', 'Entertainment_Movies', 'Entertainment_Books',
+                                       'Entertainment_General', 'Interactive', 'Entertainment_Music',
+                                       'Science_and_Technology', 'Sports', 'Politics'],
+            'cobot_dialogact_intents': ['Information_DeliveryIntent', 'General_ChatIntent',
+                                        'Information_RequestIntent', 'User_InstructionIntent',
+                                        'InteractiveIntent',
+                                        'Opinion_ExpressionIntent', 'OtherIntent', 'ClarificationIntent',
+                                        'Topic_SwitchIntent', 'Opinion_RequestIntent',
+                                        'Multiple_GoalsIntent']
+        }
+
+        def _get_plain_annotations(annotated_utterance, model_name):
+            answer_probs, answer_labels = {}, []
+            try:
+                annotations = annotated_utterance['annotations']
+                answer = annotations[model_name]
+                answer = _process_text(answer)
+                if isinstance(answer, list):
+                    if model_name == 'sentiment_classification':
+                        answer_probs = _process_old_sentiment(answer)
+                        answer_labels = _probs_to_labels(answer_probs)
+                    else:
+                        answer_labels = answer
+                        answer_probs = _labels_to_probs(answer_labels, combined_classes[model_name])
+                else:
+                    answer_probs = answer
+                    answer_labels = _probs_to_labels(answer_probs)
+            except Exception as e:
+                raise e
+            return answer_probs, answer_labels
+
+        def _get_combined_annotations(annotated_utterance, model_name):
+            answer_probs, answer_labels = {}, []
+            if 'combined_classification' in annotated_utterance['annotations']:
+                annotations = annotated_utterance['annotations']
+                combined_annotations = annotations['combined_classification']
+                if combined_annotations and isinstance(combined_annotations, list):
+                    combined_annotations = combined_annotations[0]
+                if model_name in combined_annotations:
+                    answer_probs = combined_annotations[model_name]
+                else:
+                    raise Exception(f'Not found Model name {model_name} in combined annotations {combined_annotations}')
+                answer_labels = _probs_to_labels(answer_probs)
+            return answer_probs, answer_labels
+
+        def _get_etc_model(annotated_utterance, model_name, probs=True, default_probs={}, default_labels=[]):
+            """Function to get emotion classifier annotations from annotated utterance.
+
+            Args:
+                annotated_utterance: dictionary with annotated utterance, or annotations
+                probs: return probabilities or not
+                default: default value to return. If it is None, returns empty dict/list depending on probs argument
+            Returns:
+                dictionary with emotion probablilties, if probs == True, or emotion labels if probs != True
+            """
+            try:
+                if model_name in annotated_utterance['annotations']:
+                    answer_probs, answer_labels = _get_plain_annotations(annotated_utterance,
+                                                                         model_name=model_name)
+                else:
+                    answer_probs, answer_labels = _get_combined_annotations(annotated_utterance,
+                                                                            model_name=model_name)
+            except Exception as e:
+                raise e
+                answer_probs, answer_labels = default_probs, default_labels
+            if probs:  # return probs
+                return answer_probs
+            else:
+                return answer_labels
+
+        def get_sentiment(annotated_utterance, probs=True,
+                          default_probs={'positive': 0, 'negative': 0, 'neutral': 1},
+                          default_labels=['neutral']):
+            """Function to get sentiment classifier annotations from annotated utterance.
+
+            Args:
+                annotated_utterance: dictionary with annotated utterance, or annotations
+                probs: return probabilities or not
+                default: default value to return. If it is None, returns empty dict/list depending on probs argument
+            Returns:
+                dictionary with sentiment probablilties, if probs == True, or sentiment labels if probs != True
+            """
+            return _get_etc_model(annotated_utterance, 'sentiment_classification', probs=probs,
+                                  default_probs=default_probs, default_labels=default_labels)
+
+        skill_dict = {'date': [], 'sentiment': [], 'skill': [], 'version': []}
+        for dialog in tqdm(dialogs):
+            for i in range(2, len(dialog.raw_utterances), 2):
+                bot_utt = dialog.raw_utterances[i - 1]
+                human_utt = dialog.raw_utterances[i]
+                if 'active_skill' in bot_utt:
+                    sentiment = get_sentiment(human_utt)
+                    if 'how do you feel' not in bot_utt['text'].lower() and sentiment:
+                        max_sentiment = [sentiment_name
+                                         for sentiment_name, sentiment_val in sentiment.items()
+                                         if sentiment_val == max(sentiment.values())][0]
+                        skill_dict['date'].append(dialog.date_start)
+                        skill_dict['sentiment'].append(max_sentiment)
+                        skill_dict['skill'].append(bot_utt['active_skill'])
+                        skill_dict['version'].append(dialog.version)
+        # dialog_durations_df, skills_ratings_df, dialog_finished_df, ratings_df = prepare_all_data(dialogs)
+        # print(skills_ratings_df)
+        df = pd.DataFrame.from_dict(skill_dict)
+        df['date'] = pd.to_datetime(df['date'], utc=True)
+        return df
 
     def calculate_skill_weights(self, dialogs):
         from collections import defaultdict
@@ -739,6 +907,74 @@ class OverviewChartsView(BaseView):
         fig_versions_ratings.update_layout(hovermode='x', xaxis={'type': 'category'})
         # fig_versions_ratings.show()
         return fig_versions_ratings
+
+
+    def plot_sentiment_by_releases(self, sentiments, releases, sentiment_type):
+        from plotly.subplots import make_subplots
+        import plotly.graph_objects as go
+        import datetime as dt
+
+        fig_versions_ratings = make_subplots(rows=1, cols=1, subplot_titles=(f'Skills {sentiment_type} sentiment by releases',))
+
+        now = dt.datetime.now(tz=tz.gettz('UTC'))
+        end = now
+        start = end - dt.timedelta(days=14)
+
+        min_n_active_skill = 10
+
+        x = dict()
+        skill_r = dict()
+        skill_z = dict()
+        skill_names = set(sentiments['skill'].unique()) - set(['no_skill_name']) | set(['_total'])
+        for n in skill_names:
+            skill_r[n] = []
+            x[n] = []
+            skill_z[n] = []
+
+        min_r, max_r = 1, 0
+        releases_reversed = list(reversed(releases.values))
+        for i, (d_start, rel) in enumerate(releases_reversed):
+
+            if i == len(releases) - 1:
+                d_end = now
+            else:
+                d_end = releases_reversed[i + 1][0]
+            versions = rel.split('/')
+            release_ratings = sentiments[(sentiments['date'] < d_end) & (sentiments['date'] >= d_start)]
+            if len(release_ratings) < 50:
+                continue
+            #     release_ratings = release_ratings[release_ratings['version'].isin(versions)]
+            df2 = release_ratings.groupby('skill')['sentiment'].count()
+            for sn, r in release_ratings[release_ratings['sentiment']==sentiment_type].groupby('skill')['sentiment'].count().items():
+                if sn in skill_names:
+                    #             if c < min_n_active_skill:
+                    #                 continue
+                    c = df2[sn]
+                    skill_r[sn] += [r/c if c else 0]
+                    x[sn] += [f'{d_end.date()} {rel}']
+                    skill_z[sn] += [c]
+            sn = '_total'
+            d = release_ratings[release_ratings['sentiment'] == sentiment_type]['sentiment'].count()
+            c = release_ratings['sentiment'].count()
+            skill_r[sn] += [d/c if c else 0]
+            x[sn] += [f'{d_end.date()} {rel}']
+            skill_z[sn] += [c]
+
+        for n in sorted(list(skill_names), key=str.lower):
+            if len(skill_r[n]) > 0:
+                fig_versions_ratings.add_trace(go.Scatter(name=n, x=x[n], y=skill_r[n], customdata=skill_z[n],
+                                                          hovertemplate='%{y:.2f}: count %{customdata}',
+                                                          line_shape='hvh',
+                                                          line={'dash': 'dot'}, marker={'size': 8}), row=1, col=1)
+                min_r = min(min_r, min(skill_r[n]))
+                max_r = max(max_r, max(skill_r[n]))
+
+        fig_versions_ratings.update_layout(height=500, width=1300, showlegend=True, )
+        fig_versions_ratings['layout']['yaxis1']['range'] = [min_r - 0.1, max_r + 0.1]
+        fig_versions_ratings.update_layout(hovermode='x', xaxis={'type': 'category'})
+        # fig_versions_ratings.show()
+        return fig_versions_ratings
+
 
     def plot_ratings_by_releases_ema_05(self, skills_ratings, releases, dialog_skills_weights_data):
         from plotly.subplots import make_subplots
