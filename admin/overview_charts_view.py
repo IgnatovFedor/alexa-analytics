@@ -1,17 +1,19 @@
-from flask_admin import BaseView, expose
+import datetime as dt
 import json
-import os
-import pandas as pd
-import datetime as dt
-from dateutil import tz
-from plotly.offline import plot
-from db.models import Conversation
-from admin.admin import cache
-from tqdm import tqdm
-import datetime as dt
 import logging
-logger = logging.getLogger(__name__)
+import os
 
+import pandas as pd
+from dateutil import tz
+from flask_admin import BaseView, expose
+from plotly.offline import plot
+from tqdm import tqdm
+
+from admin.admin import cache
+from db.models import Conversation
+
+logger = logging.getLogger(__name__)
+import requests
 
 skill_names_map = {
      'meta_script_skill' : 'Activities Discussion',
@@ -71,7 +73,7 @@ class OverviewChartsView(BaseView):
         super().__init__(*args, **kwargs)
 
         # TODO fix the shit, fuck the flask:
-        from db.db import DBManager, get_session
+        from db.db import get_session
         with open('core/config.json') as config_file:
             config = json.load(config_file)
         db_config = config['DB']
@@ -91,6 +93,13 @@ class OverviewChartsView(BaseView):
         :return:
         """
         logger.info("Retrieve releases data...")
+        try:
+            releases_url = os.getenv('ALEXA_RELEASES_URL')
+            req = requests.get(releases_url)
+            with open('releases.txt', 'wb') as f:
+                f.write(req.content)
+        except Exception as e:
+            logger.error(e)
         releases = read_releases("releases.txt")
         logger.info("releases")
         logger.info(releases)
@@ -1249,7 +1258,6 @@ class OverviewChartsView(BaseView):
             return s
 
         from plotly.subplots import make_subplots
-        import plotly.graph_objects as go
 
         fig_version_ratings = make_subplots(rows=1, cols=1, subplot_titles=('Ratings by version',))
 
@@ -1293,7 +1301,6 @@ class OverviewChartsView(BaseView):
         :param skills_ratings:
         :return:
         """
-        from plotly.subplots import make_subplots
         import plotly.graph_objects as go
         import datetime as dt
 
@@ -1825,7 +1832,6 @@ class OverviewChartsView(BaseView):
         :return:
         """
         from plotly.subplots import make_subplots
-        import plotly.graph_objects as go
         import datetime as dt
         fig_dialog_finished_day = make_subplots(rows=1, cols=1,
                                                 subplot_titles=('Dialog finished reason, with rating',))
@@ -1881,7 +1887,6 @@ class OverviewChartsView(BaseView):
         :return:
         """
         from plotly.subplots import make_subplots
-        import plotly.graph_objects as go
         import datetime as dt
 
         fig_dialog_finished_all_day = make_subplots(rows=1, cols=1,
@@ -1936,7 +1941,6 @@ class OverviewChartsView(BaseView):
         :return:
         """
         from plotly.subplots import make_subplots
-        import plotly.graph_objects as go
         import datetime as dt
 
         fig_dialog_finished_skill_day = make_subplots(rows=1, cols=1,
@@ -2001,7 +2005,6 @@ class OverviewChartsView(BaseView):
         :return:
         """
         from plotly.subplots import make_subplots
-        import plotly.graph_objects as go
         import datetime as dt
 
         fig_dialog_finished_stop_skill_day = make_subplots(rows=1, cols=1, subplot_titles=(
