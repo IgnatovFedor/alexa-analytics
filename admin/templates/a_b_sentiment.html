@@ -1,0 +1,40 @@
+{% extends 'admin/base.html' %}
+{% block head %}
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<style>
+    .container {
+        margin-left: initial;
+    }
+</style>
+{% endblock %}
+{% block body %}
+<form method="post">
+  <table>
+    <tr>
+      <td>
+        <p>Select A version:&nbsp;</p>
+        {% for i in versions %}
+          <div>
+            <input type="radio" id="{{i}}" name="version_a" value="{{i}}">
+            <label for="{{i}}">{{i}}</label>
+          </div>
+        {% endfor %}
+      </td>
+      <td>
+        <p>&nbsp;Select B version:&nbsp;</p>
+        {% for i in versions %}
+          <div>
+            <input type="radio" id="{{i}}" name="version_b" value="{{i}}">
+            <label for="{{i}}">{{i}}</label>
+          </div>
+        {% endfor %}
+      </td>
+    </tr>
+  </table>
+  <input id="versions_str" name="versions_str" type="hidden" value="{{versions_str}}">
+  <input type="submit">
+</form>
+<div id="sentiments">{{sentiments_fig_div|safe }}</div>
+{% endblock %}
+
+</html>

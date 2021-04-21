@@ -2,15 +2,18 @@ import datetime as dt
 import json
 import logging
 import os
+from collections import defaultdict
 
 import pandas as pd
 from dateutil import tz
+from flask import request
 from flask_admin import BaseView, expose
 from plotly.offline import plot
+from sqlalchemy.sql import text
 from tqdm import tqdm
 
 from admin.admin import cache
-from db.models import Conversation
+from db.models import Conversation, Utterance
 
 logger = logging.getLogger(__name__)
 import requests
@@ -83,6 +86,61 @@ class OverviewChartsView(BaseView):
         db_config['dbname'] = db_config.get('dbname') or os.getenv('DB_NAME')
         self.session = get_session(db_config['user'], db_config['password'], db_config['host'],
                               db_config['dbname'])
+
+    @expose('/a_b_sentiment', methods=['GET', 'POST'])
+    def sentiment(self):
+        today = dt.date.today()
+        weeks_ago = today - dt.timedelta(weeks=2)
+        kwargs = {}
+        def get_dialogs(version: str):
+            dialogs = self.session.query(Conversation).filter(Conversation.date_finish > weeks_ago).filter(text(
+                f"conversation.id in (select distinct utterance.conversation_id from utterance where utterance.attributes->>'version' = '{version}')"))
+            return dialogs.all()
+
+        if request.method == 'GET':
+            versions = self.session.query(Utterance.attributes['version']).filter(Utterance.date_time > weeks_ago).distinct()
+            versions = [v[0] for v in versions.all() if v[0]]
+        else:
+            versions = request.form['versions_str'].split()
+            version_a, version_b = request.form.get('version_a') or versions[0], request.form.get('version_b') or versions[0]
+            dialogs_a, dialogs_b = get_dialogs(version_a), get_dialogs(version_b)
+            sentiments_a, sentiments_b = self.prepare_sentiment(dialogs_a), self.prepare_sentiment(dialogs_b)
+
+            groups = ['positive', 'neutral', 'negative']
+            skill_list = list(sorted({'_total'} | set(sentiments_a['skill'].unique()) | set(sentiments_b['skill'].unique())))
+            from plotly import graph_objects as go
+            fig = go.Figure()
+            fig.update_layout(template="simple_white", xaxis=dict(title_text="Skill Name", tickangle=0),
+                              yaxis=dict(title_text="Sentiment"), barmode="stack")
+
+            def add_data(sentiments_df, colors: list, version_letter: str):
+                skill_r = defaultdict(list)
+                skill_c = defaultdict(list)
+                names = [f'{version_letter} - positive', f'{version_letter} - neutral', f'{version_letter} - negative']
+                for skill in skill_list:
+                    if skill == '_total':
+                        skill_df = sentiments_df
+                    else:
+                        skill_df = sentiments_df[sentiments_df['skill'] == skill]
+                    total = skill_df.shape[0]
+                    for sent in groups:
+                        sentiment_count = skill_df[skill_df['sentiment'] == sent].shape[0]
+                        skill_r[sent] += [sentiment_count / total] if total else [0]
+                        skill_c[sent] += [sentiment_count]
+                for r, n, c in zip(groups, names, colors):
+                    ## put var1 and var2 together on the first subgrouped bar
+                    fig.add_trace(
+                        go.Bar(x=[skill_list, [version_letter] * len(skill_list)], y=skill_r[r], customdata=skill_c[r],
+                               hovertemplate='%{x} %{y:.2f}: count: %{customdata}', name=n, marker_color=c),
+                    )
+
+            add_data(sentiments_a, ['#006400', '#FFD700', '#B22222'], 'A')
+            add_data(sentiments_b, ['#008000', '#FFFF00', '#FF0000'], 'B')
+
+            sentiments_fig_div = plot(fig, output_type='div', include_plotlyjs=False)
+            kwargs['sentiments_fig_div'] = sentiments_fig_div
+
+        return self.render('a_b_sentiment.html', versions=versions, versions_str=' '.join(versions), **kwargs)
 
 
     @expose('/')
