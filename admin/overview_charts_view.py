@@ -99,7 +99,7 @@ class OverviewChartsView(BaseView):
 
         if request.method == 'GET':
             versions = self.session.query(Utterance.attributes['version']).filter(Utterance.date_time > weeks_ago).distinct()
-            versions = [v[0] for v in versions.all() if v[0]]
+            versions = sorted([v[0] for v in versions.all() if v[0]])
         else:
             versions = request.form['versions_str'].split()
             version_a, version_b = request.form.get('version_a') or versions[0], request.form.get('version_b') or versions[0]
@@ -110,7 +110,7 @@ class OverviewChartsView(BaseView):
             skill_list = list(sorted({'_total'} | set(sentiments_a['skill'].unique()) | set(sentiments_b['skill'].unique())))
             from plotly import graph_objects as go
             fig = go.Figure()
-            fig.update_layout(template="simple_white", xaxis=dict(title_text="Skill Name", tickangle=0),
+            fig.update_layout(template="simple_white", xaxis=dict(title_text=f"A - {version_a}, B - {version_b}", tickangle=0),
                               yaxis=dict(title_text="Sentiment"), barmode="stack")
 
             def add_data(sentiments_df, colors: list, version_letter: str):
@@ -424,16 +424,20 @@ class OverviewChartsView(BaseView):
             last_skill = None
 
             # if 'alexa_commands' in dialog:
-            if '/alexa' in dialog.raw_utterances[-2]['text']:
-                # gotch command
-                alexa_command = dialog.raw_utterances[-2]['text']
-                last_skill = get_last_skill(dialog)
-            elif n_utt>3 and '/alexa' in dialog.raw_utterances[-3]['text']:
-                # but it may occur on -3 position like here:
-                # http://a1b4e1088651f439d9e82fce0c4533b4-501376769.us-east-1.elb.amazonaws.com:4242/api/dialogs/05bb76e7fda316863528f13526dc9895
-                # gotch command
-                alexa_command = dialog.raw_utterances[-3]['text']
-                last_skill = get_last_skill(dialog)
+            try:
+                if '/alexa' in dialog.raw_utterances[-2]['text']:
+                    # gotch command
+                    alexa_command = dialog.raw_utterances[-2]['text']
+                    last_skill = get_last_skill(dialog)
+                elif n_utt>3 and '/alexa' in dialog.raw_utterances[-3]['text']:
+                    # but it may occur on -3 position like here:
+                    # http://a1b4e1088651f439d9e82fce0c4533b4-501376769.us-east-1.elb.amazonaws.com:4242/api/dialogs/05bb76e7fda316863528f13526dc9895
+                    # gotch command
+                    alexa_command = dialog.raw_utterances[-3]['text']
+                    last_skill = get_last_skill(dialog)
+            except IndexError as e:
+                print(dialog.raw_utterances)
+                raise e
 
             # if '#+#exit' in dialog.raw_utterances[-1].text:
             if '#+#exit' in dialog.raw_utterances[-1]['text']:
