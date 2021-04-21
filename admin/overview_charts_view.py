@@ -419,25 +419,23 @@ class OverviewChartsView(BaseView):
             bot_respond_with_goodbye = False
             # n_turns = len(dialog.utterances) // 2
             n_utt = len(dialog.raw_utterances)
+            if n_utt < 2:
+                continue
             # n_utt = len(list(dialog.utterances))
             n_turns = n_utt // 2
             last_skill = None
 
             # if 'alexa_commands' in dialog:
-            try:
-                if '/alexa' in dialog.raw_utterances[-2]['text']:
-                    # gotch command
-                    alexa_command = dialog.raw_utterances[-2]['text']
-                    last_skill = get_last_skill(dialog)
-                elif n_utt>3 and '/alexa' in dialog.raw_utterances[-3]['text']:
-                    # but it may occur on -3 position like here:
-                    # http://a1b4e1088651f439d9e82fce0c4533b4-501376769.us-east-1.elb.amazonaws.com:4242/api/dialogs/05bb76e7fda316863528f13526dc9895
-                    # gotch command
-                    alexa_command = dialog.raw_utterances[-3]['text']
-                    last_skill = get_last_skill(dialog)
-            except IndexError as e:
-                print(dialog.raw_utterances)
-                raise e
+            if '/alexa' in dialog.raw_utterances[-2]['text']:
+                # gotch command
+                alexa_command = dialog.raw_utterances[-2]['text']
+                last_skill = get_last_skill(dialog)
+            elif n_utt>3 and '/alexa' in dialog.raw_utterances[-3]['text']:
+                # but it may occur on -3 position like here:
+                # http://a1b4e1088651f439d9e82fce0c4533b4-501376769.us-east-1.elb.amazonaws.com:4242/api/dialogs/05bb76e7fda316863528f13526dc9895
+                # gotch command
+                alexa_command = dialog.raw_utterances[-3]['text']
+                last_skill = get_last_skill(dialog)
 
             # if '#+#exit' in dialog.raw_utterances[-1].text:
             if '#+#exit' in dialog.raw_utterances[-1]['text']:
