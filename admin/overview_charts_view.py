@@ -114,18 +114,20 @@ class OverviewChartsView(BaseView):
                 skill_df = sentiments_a[sentiments_a['skill'] == skill]
                 total = skill_df.shape[0]
                 skill_dict[skill] = skill_df[skill_df['sentiment'] == 'negative'].shape[0] / total if total else 0
-            skill_list = ['_total'] + sorted(skill_dict, key=lambda y: skill_dict[y], reverse=True)
+            negative_skill_list = ['_total'] + sorted(skill_dict, key=lambda y: skill_dict[y], reverse=True)
 
-            from plotly import graph_objects as go
-            fig = go.Figure()
-            fig.update_layout(template="simple_white", xaxis=dict(title_text=f"A - {version_a}, B - {version_b}", tickangle=0),
-                              yaxis=dict(title_text="Sentiment"), barmode="stack")
+            skill_dict = dict()
+            for skill in skill_list:
+                skill_df = sentiments_a[sentiments_a['skill'] == skill]
+                total = skill_df.shape[0]
+                skill_dict[skill] = skill_df[skill_df['sentiment'] == 'positive'].shape[0] / total if total else 0
+            positive_skill_list = ['_total'] + sorted(skill_dict, key=lambda y: skill_dict[y])
 
-            def add_data(sentiments_df, colors: list, version_letter: str):
+            def add_data(figure, sentiments_df, colors: list, version_letter: str, ordered_skills: list):
                 skill_r = defaultdict(list)
                 skill_c = defaultdict(list)
                 names = [f'{version_letter} - positive', f'{version_letter} - neutral', f'{version_letter} - negative']
-                for skill in skill_list:
+                for skill in ordered_skills:
                     if skill == '_total':
                         skill_df = sentiments_df
                     else:
@@ -137,16 +139,31 @@ class OverviewChartsView(BaseView):
                         skill_c[sent] += [sentiment_count]
                 for r, n, c in zip(groups, names, colors):
                     ## put var1 and var2 together on the first subgrouped bar
-                    fig.add_trace(
-                        go.Bar(x=[skill_list, [version_letter] * len(skill_list)], y=skill_r[r], customdata=skill_c[r],
+                    figure.add_trace(
+                        go.Bar(x=[ordered_skills, [version_letter] * len(ordered_skills)], y=skill_r[r], customdata=skill_c[r],
                                hovertemplate='%{x} %{y:.2f}: count: %{customdata}', name=n, marker_color=c),
                     )
 
-            add_data(sentiments_a, ['#006400', '#FFD700', '#B22222'], 'A')
-            add_data(sentiments_b, ['#008000', '#FFFF00', '#FF0000'], 'B')
+            from plotly import graph_objects as go
+            fig = go.Figure()
+            fig.update_layout(template="simple_white", xaxis=dict(title_text=f"A - {version_a}, B - {version_b}", tickangle=0),
+                              yaxis=dict(title_text="Sentiment"), barmode="stack")
+
+            add_data(fig, sentiments_a, ['#006400', '#FFD700', '#B22222'], 'A', negative_skill_list)
+            add_data(fig, sentiments_b, ['#008000', '#FFFF00', '#FF0000'], 'B', negative_skill_list)
+
+            fig_positive = go.Figure()
+            fig_positive.update_layout(template="simple_white", xaxis=dict(title_text=f"A - {version_a}, B - {version_b}", tickangle=0),
+                                       yaxis=dict(title_text="Sentiment"), barmode="stack")
+
+            add_data(fig_positive, sentiments_a, ['#006400', '#FFD700', '#B22222'], 'A', positive_skill_list)
+            add_data(fig_positive, sentiments_b, ['#008000', '#FFFF00', '#FF0000'], 'B', positive_skill_list)
 
             sentiments_fig_div = plot(fig, output_type='div', include_plotlyjs=False)
             kwargs['sentiments_fig_div'] = sentiments_fig_div
+
+            sentiments_fig_positive_div = plot(fig_positive, output_type='div', include_plotlyjs=False)
+            kwargs['sentiments_fig_positive_div'] = sentiments_fig_positive_div
 
         return self.render('a_b_sentiment.html', versions=versions, versions_str=' '.join(versions), **kwargs)
 
