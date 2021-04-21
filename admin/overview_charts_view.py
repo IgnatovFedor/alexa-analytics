@@ -105,9 +105,17 @@ class OverviewChartsView(BaseView):
             version_a, version_b = request.form.get('version_a') or versions[0], request.form.get('version_b') or versions[0]
             dialogs_a, dialogs_b = get_dialogs(version_a), get_dialogs(version_b)
             sentiments_a, sentiments_b = self.prepare_sentiment(dialogs_a), self.prepare_sentiment(dialogs_b)
-
             groups = ['positive', 'neutral', 'negative']
-            skill_list = list(sorted({'_total'} | set(sentiments_a['skill'].unique()) | set(sentiments_b['skill'].unique())))
+            skill_list = list(set(sentiments_a['skill'].unique()) | set(sentiments_b['skill'].unique()))
+
+            # сортируем скиллы по убыванию негативного сентимента
+            skill_dict = dict()
+            for skill in skill_list:
+                skill_df = sentiments_a[sentiments_a['skill'] == skill]
+                total = skill_df.shape[0]
+                skill_dict[skill] = skill_df[skill_df['sentiment'] == 'negative'].shape[0] / total if total else 0
+            skill_list = ['_total'] + sorted(skill_dict, key=lambda y: skill_dict[y], reverse=True)
+
             from plotly import graph_objects as go
             fig = go.Figure()
             fig.update_layout(template="simple_white", xaxis=dict(title_text=f"A - {version_a}, B - {version_b}", tickangle=0),
