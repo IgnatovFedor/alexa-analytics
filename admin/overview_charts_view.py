@@ -365,10 +365,13 @@ class OverviewChartsView(BaseView):
 
         # ####
         logger.info("plot_dialog_finished_reasons_w_ratings...")
-        dialog_finished_reason_w_rats_fig = self.plot_dialog_finished_reasons_w_ratings(dialog_finished_df)
-        dialog_finished_reason_w_rats_fig_div = plot(dialog_finished_reason_w_rats_fig, output_type='div',
-                                                     include_plotlyjs=False)
-        context_dict["dialog_finished_reason_w_rats_fig_div"] = dialog_finished_reason_w_rats_fig_div
+        try:
+            dialog_finished_reason_w_rats_fig = self.plot_dialog_finished_reasons_w_ratings(dialog_finished_df)
+            dialog_finished_reason_w_rats_fig_div = plot(dialog_finished_reason_w_rats_fig, output_type='div',
+                                                         include_plotlyjs=False)
+            context_dict["dialog_finished_reason_w_rats_fig_div"] = dialog_finished_reason_w_rats_fig_div
+        except Exception as e:
+            context_dict["dialog_finished_reason_w_rats_fig_div"] = f"Exception occured during plotting dialog_finished_reason_w_rats_fig_div chart: {e}"
 
         #
         logger.info("plot_last_skill_in_dialog_with_rating...")
