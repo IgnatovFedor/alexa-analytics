@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.20/css/jquery.dataTables.min.css">
+    <script type="text/javascript" language="javascript" src="https://code.jquery.com/jquery-3.3.1.js"></script>
+    <script type="text/javascript" language="javascript"
+            src="https://cdn.datatables.net/1.10.20/js/jquery.dataTables.min.js"></script>
+
+    <title>{{ title }}</title>
+    <script type="text/javascript" class="init">
+<!--        $(document).ready(function() {-->
+<!--            $("#example").DataTable( {-->
+<!--                    "paging":   false,-->
+<!--                    "order": [[ 1, "desc" ]],-->
+<!--                    "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {-->
+<!--                        if (aData[4] > 0.0) {-->
+<!--                            $("td", nRow).css("background-color", "mediumseagreen");-->
+<!--                        }-->
+<!--                        else if (aData[4] < 0.0) {-->
+<!--                            $("td", nRow).css("background-color", "tomato");-->
+<!--                        }-->
+<!--                    },-->
+<!--                } );-->
+<!--        } );-->
+        {% autoescape off %}
+        {{js_table_script}}
+        {% endautoescape %}
+    </script>
+
+</head>
+<body>
+
+<h1>
+    {{ title|default:"DataFrame Title Missed" }}</h1>
+<div>
+    <!--    {% autoescape off %}-->
+    {{ df }}
+    <!--    {% endautoescape %}-->
+</div>
+
+</body>
+</html>

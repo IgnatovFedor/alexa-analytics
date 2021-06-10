@@ -1,0 +1,220 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static admin_modify %}
+
+{% block extrahead %}{{ block.super }}
+<script type="text/javascript" src="{% url 'admin:jsi18n' %}"></script>
+{{ media }}
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css"
+          integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7" crossorigin="anonymous">
+
+    <!-- Optional theme -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap-theme.min.css"
+          integrity="sha384-fLW2N01lMqjakBkx3l/M9EahuwpSfeNvV63J5ezn3uZzapT0u7EYsXMjQV+0En5r" crossorigin="anonymous">
+
+{% endblock %}
+
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" type="text/css" href="{% static "admin/css/forms.css" %}">{% endblock %}
+
+{% block coltype %}colM{% endblock %}
+
+{% block bodyclass %}{{ block.super }} app-{{ opts.app_label }} model-{{ opts.model_name }} change-form{% endblock %}
+
+{% if not is_popup %}
+{% block breadcrumbs %}
+
+<div class="breadcrumbs">
+<a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+&rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+&rsaquo; {% if has_view_permission %}<a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>{% else %}{{ opts.verbose_name_plural|capfirst }}{% endif %}
+&rsaquo; {% if add %}{% blocktrans with name=opts.verbose_name %}Add {{ name }}{% endblocktrans %}{% else %}{{ original|truncatewords:"18" }}{% endif %}
+</div>
+{% endblock %}
+{% endif %}
+
+{% block content %}<div id="content-main">
+{% block object-tools %}
+{% if change %}{% if not is_popup %}
+  <ul class="object-tools">
+    {% block object-tools-items %}
+      {% change_form_object_tools %}
+    {% endblock %}
+  </ul>
+{% endif %}{% endif %}
+{% endblock %}
+<form {% if has_file_field %}enctype="multipart/form-data" {% endif %}action="{{ form_url }}" method="post" id="{{ opts.model_name }}_form" novalidate>{% csrf_token %}{% block form_top %}{% endblock %}
+<div>
+{% if is_popup %}<input type="hidden" name="{{ is_popup_var }}" value="1">{% endif %}
+{% if to_field %}<input type="hidden" name="{{ to_field_var }}" value="{{ to_field }}">{% endif %}
+{% if save_on_top %}{% block submit_buttons_top %}{% submit_row %}{% endblock %}{% endif %}
+{% if errors %}
+    <p class="errornote">
+    {% if errors|length == 1 %}{% trans "Please correct the error below." %}{% else %}{% trans "Please correct the errors below." %}{% endif %}
+    </p>
+    {{ adminform.form.non_field_errors }}
+{% endif %}
+
+{% block field_sets %}
+<!--    HERE is the custom dialog view-->
+
+<br/>
+
+        <div class="container-fluid">
+            <h2>Conversation View</h2>
+            <!--<div class="container">-->
+            <a href="#" class="btn btn-default openall">open all</a> <a href="#" class="btn btn-default closeall">close all</a>
+
+            {% for utt in original.utterance_set.all reversed %}
+
+            {% if utt.active_skill == "human" %}
+            <div class="row">
+            {% else %}
+            <div class="row bg-info">
+            {% endif %}
+
+                <div class="col-md-2">{{utt.author}}</div>
+                <div class="col-md-10">
+                    <div id="accordion__{{utt.id}}">
+                        <div>
+                            <a class="accordion-toggle text-warning" data-toggle="collapse"
+                               data-parent="#accordion__{{utt.id}}"
+                               href="#collapse__{{utt.id}}">
+                                <div>
+                                    <b>{{utt.text}}</b>
+                                </div>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {% if utt.active_skill %}
+            <div class="row">
+            {% else %}
+            <div class="row bg-info">
+            {% endif %}
+
+                <div id="collapse__{{utt.id}}" class="panel-collapse collapse">
+                    <div class="panel-body">
+                        <div class="panel-group" id="accordion2__{{utt.id}}">
+
+                            {% if utt.utterancehypothesis_set.all %}
+                            <div class="panel panel-default">
+                                <div class="panel-heading">
+                                    <a class="accordion-toggle" data-toggle="collapse"
+                                       data-parent="#accordion2__{{utt.id}}"
+                                       href="#collapse_hypos__{{utt.id}}">Response Hypotheses</a>
+                                </div>
+                                <div id="collapse_hypos__{{utt.id}}" class="panel-collapse collapse in">
+                                    <div class="panel-body">
+                                        <table class="hypotheses table table-striped table-hover table-condensed">
+                                            <tr>
+                                                <th>Skill Name</th>
+                                                <th>Confidence</th>
+                                                <th>Text</th>
+                                                <th>Other attrs</th>
+                                            </tr>
+                                            {% for hypo in utt.utterancehypothesis_set.all|dictsortreversed:"confidence" %}
+                                            <tr>
+                                                <td>{{hypo.skill_name}}</td>
+                                                <td>{{hypo.confidence|floatformat:2}}</td>
+                                                <td><b>{{hypo.text}}</b></td>
+                                                <td>
+                                                    <details>
+                                                        <summary>Expand..</summary>
+                                                        {{hypo.other_attrs}}
+<!--                                                        <pre>{{hypo.other_attrs}}</pre>-->
+                                                    </details>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                            <div class="panel panel-default">
+                                <div class="panel-heading">
+                                    <!--                                        <h4 class="panel-title">-->
+                                    <a class="accordion-toggle" data-toggle="collapse"
+                                       data-parent="#accordion2__{{utt.id}}"
+                                       href="#collapse_annos__{{utt.id}}">
+                                        Annotations data
+                                    </a>
+                                    <!--                                        </h4>-->
+                                </div>
+                                <div id="collapse_annos__{{utt.id}}" class="panel-collapse collapse in">
+                                    <div class="panel-body">
+                                        <table class="annotations table table-striped table-bordered table-hover table-condensed">
+                                            <tr>
+                                                <th>Annotator</th>
+                                                <th>Data</th>
+                                            </tr>
+                                            {% for anno in utt.annotation_set.all %}
+                                            <tr>
+                                                <td>{{anno.annotation_type}}</td>
+                                                <td>{{anno.annotation_dict}}</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+        </div>
+
+<!--   END the custom dialog view-->
+
+{% for fieldset in adminform %}
+  {% include "admin/includes/fieldset.html" %}
+{% endfor %}
+{% endblock %}
+
+{% block after_field_sets %}{% endblock %}
+
+{% block inline_field_sets %}
+{% for inline_admin_formset in inline_admin_formsets %}
+    {% include inline_admin_formset.opts.template %}
+{% endfor %}
+{% endblock %}
+
+{% block after_related_objects %}{% endblock %}
+
+{% block submit_buttons_bottom %}{% submit_row %}{% endblock %}
+
+{% block admin_change_form_document_ready %}
+    <script type="text/javascript"
+            id="django-admin-form-add-constants"
+            src="{% static 'admin/js/change_form.js' %}"
+            {% if adminform and add %}
+                data-model-name="{{ opts.model_name }}"
+            {% endif %}>
+    </script>
+{% endblock %}
+
+{# JavaScript for prepopulated fields #}
+{% prepopulated_fields_js %}
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <!--Unfortunatelyu if I turn on Jquery then collapses stop working. So wee need it to be disabled-->
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+    <!-- Latest compiled and minified JavaScript -->
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"
+            integrity="sha384-0mSbJDEHialfmuBBQP6A4Qrprq5OVfW37PRR3j5ELqxss1yVqOtnepnHVP9aJ7xS"
+            crossorigin="anonymous"></script>
+<script>
+        $('.closeall').click(function(){
+          $('.panel-collapse.in')
+            .collapse('hide');
+        });
+        $('.openall').click(function(){
+          $('.panel-collapse:not(".in")')
+            .collapse('show');
+        });
+        </script>
+</div>
+</form></div>
+{% endblock %}

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <title>Skills Sentiments</title>
+</head>
+<body>
+<h1>Last day Skills Averaged Sentiment Distribution Overview</h1>
+{% for each_skill, skill_stat_dict in skill_stat_dict.items %}
+    <h2>{{each_skill}}</h2>
+<!--    {{skill_stat_dict}}-->
+    {% autoescape off %}
+    {{ skill_stat_dict.bar_plot }}
+    {% endautoescape %}
+
+{% endfor %}
+
+</body>
+</html>
